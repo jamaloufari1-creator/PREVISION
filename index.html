@@ -2499,10 +2499,6 @@ function renderTramo(){
     const msgDiv=document.createElement('div');
     msgDiv.style.cssText='padding:5px 10px;background:var(--s2);border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center;';
     msgDiv.innerHTML=`
-      <button onclick="enviarMensajeDirectoTipo('${gid}','🙋 AYUDA','ayuda')" style="font-size:9px;padding:2px 6px;border-radius:4px;border:1px solid var(--blue);background:var(--blue-dim);color:var(--blue);cursor:pointer;white-space:nowrap;">🙋 Ayuda</button>
-      <button onclick="enviarMensajeDirectoTipo('${gid}','🔴 PARO','paro')" style="font-size:9px;padding:2px 6px;border-radius:4px;border:1px solid var(--red);background:var(--red-dim);color:var(--red);cursor:pointer;white-space:nowrap;">🔴 Paro</button>
-      <button onclick="enviarMensajeDirectoTipo('${gid}','🍕 BOCATA','bocata')" style="font-size:9px;padding:2px 6px;border-radius:4px;border:1px solid var(--muted2);background:var(--s3);color:var(--text);cursor:pointer;white-space:nowrap;">🍕 Bocata</button>
-      <button onclick="enviarMensajeDirectoTipo('${gid}','🚫 NO DISPONIBLE','nodisponible')" style="font-size:9px;padding:2px 6px;border-radius:4px;border:1px solid var(--orange);background:rgba(255,165,0,.1);color:var(--orange);cursor:pointer;white-space:nowrap;">🚫 No disp.</button>
       <input id="gmsg-${gid}" id="inp-placeholder-${gid}" placeholder="${window._enLinea&&window._enLinea[gid]?'● en línea':''}"
         style="flex:1;background:transparent;border:none;border-bottom:1px solid var(--border2);padding:2px 4px;font-size:11px;color:var(--text);outline:none;min-width:80px;"
         onkeydown="if(event.key==='Enter')enviarMensajeGrupo('${gid}',this)"
