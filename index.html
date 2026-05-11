@@ -4775,6 +4775,30 @@ function aplicarAusenciasHoy(){
   guardar();
 }
 
+
+// ══ WAKE LOCK — evitar suspensión ══
+let _wakeLock = null;
+
+async function activarWakeLock(){
+  try{
+    if('wakeLock' in navigator){
+      _wakeLock = await navigator.wakeLock.request('screen');
+      console.log('Wake Lock activo');
+      // Reactivar si se libera (ej. al minimizar y volver)
+      _wakeLock.addEventListener('release', ()=>{
+        setTimeout(activarWakeLock, 2000);
+      });
+    }
+  }catch(e){ console.warn('Wake Lock no disponible:', e); }
+}
+
+// Reactivar cuando la página vuelve a ser visible
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible') activarWakeLock();
+});
+
+activarWakeLock();
+
 function actualizarHora(){
     const n=new Date();
     const h=String(n.getHours()).padStart(2,'0');
