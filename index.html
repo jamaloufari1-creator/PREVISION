@@ -3343,12 +3343,8 @@ function _mostrarMsg(msg, esPropio){
     try{
       const _upd1={}; _upd1['recibido.'+mi]=true; firebase.firestore().collection('mensajes').doc(msg.id).update(_upd1);
     }catch(e){}
-    // Sonar cada minuto hasta leer
-    const intv=setInterval(()=>{
-      if(_msgsLeidos.has(msg.id)||!document.getElementById('msg-'+msg.id)){ clearInterval(intv); return; }
-      sonarAlarmaChat(tipo);
-    },60000);
-    span._intv=intv;
+    // Sin repetición de sonido — solo suena una vez al recibir
+    span._intv=null;
   }
 
   // Auto-quitar en 10 minutos si no se lee
