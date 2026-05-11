@@ -3010,210 +3010,88 @@ let _chatListener = null;
 
 
 
+
 // ══════════════════════════════════════════════════════════════
-// MENSAJERÍA v2 — limpio desde cero
+// MENSAJERÍA v3 — igual para todos los grupos y supervisor
 // ══════════════════════════════════════════════════════════════
 
-// ── Variables globales ──
-const _msgsActivos = {};          // msgId -> span en slider
-const _msgsLeidos = new Set();    // msgIds leídos por mí
-const _msgsPendientes = new Set();// msgIds pendientes de leer
+// ── Variables ──
+const _msgsActivos = {};
+const _msgsLeidos = new Set();
+const _msgsPendientes = new Set();
+const _msgDestinos = {};
 let _chatListenerActivo = false;
-
-// ── Modal destino ──
 let _pendingMsg = null;
-
-function abrirModalDestino(gid, texto, tipo){
-  const label = appConfig.grupos[gid] || gid.replace('g','G').toUpperCase();
-  _pendingMsg = {gid, texto, tipo: tipo||'msg', label, destino:'todos'};
-  document.getElementById('destino-texto').textContent = '"'+texto+'"';
-  const btns = document.getElementById('destino-btns');
-  btns.innerHTML = '';
-
-  const sel = (btn, dest) => {
-    btns.querySelectorAll('button').forEach(b=>{
-      b.style.background='var(--s3)'; b.style.color='var(--text)'; b.style.borderColor='var(--border2)';
-    });
-    btn.style.background='var(--blue)'; btn.style.color='#fff'; btn.style.borderColor='var(--blue)';
-    _pendingMsg.destino = dest;
-  };
-
-  // Todos
-  const bTodos = document.createElement('button');
-  bTodos.textContent='📢 Todos';
-  bTodos.style.cssText='font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid var(--blue);background:var(--blue);color:#fff;cursor:pointer;font-weight:700;';
-  bTodos.onclick=()=>sel(bTodos,'todos');
-  btns.appendChild(bTodos);
-
-  // Grupos
-  GRUPO_IDS.forEach(g2=>{
-    if(g2===gid) return;
-    const lbl = appConfig.grupos[g2]||g2.replace('g','G').toUpperCase();
-    const online = window._enLinea && window._enLinea[g2];
-    const b = document.createElement('button');
-    b.innerHTML = 'G'+lbl+' <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+(online?'var(--green)':'var(--border2)')+';margin-left:3px;vertical-align:middle;"></span>';
-    b.style.cssText='font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--s3);color:var(--text);cursor:pointer;';
-    b.onclick=()=>sel(b,g2);
-    btns.appendChild(b);
-  });
-
-  // Supervisor
-  if(gid!=='supervisor'){
-    const online = window._enLinea && window._enLinea['supervisor'];
-    const bSup = document.createElement('button');
-    bSup.innerHTML='👑 Supervisor <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+(online?'var(--green)':'var(--border2)')+';margin-left:3px;vertical-align:middle;"></span>';
-    bSup.style.cssText='font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--s3);color:var(--purple);cursor:pointer;';
-    bSup.onclick=()=>{ sel(bSup,'supervisor'); bSup.style.color='#fff'; };
-    btns.appendChild(bSup);
-  }
-
-  document.getElementById('modal-destino').style.display='flex';
-}
-
-function cerrarModalDestino(){
-  document.getElementById('modal-destino').style.display='none';
-  _pendingMsg = null;
-}
-
-function abrirModalDestinoSupervisor(texto){
-  abrirModalDestino('supervisor', texto, 'msg');
-}
-
-// ── Enviar ──
-function confirmarEnvioMensaje(){
-  if(!_pendingMsg) return;
-  const {gid, texto, tipo, label, destino} = _pendingMsg;
-  cerrarModalDestino();
-
-  const ts = Date.now();
-  const msgId = gid+'_'+ts;
-  const grupoLabel = gid==='supervisor' ? 'SUPERVISOR' : 'G'+label;
-
-  // Registrar como propio para ignorar en listener
-  window._misMensajes = window._misMensajes||new Set();
-  window._misMensajes.add(ts);
-  setTimeout(()=>window._misMensajes.delete(ts), 20000);
-
-  const msgData = {id:msgId, gid, grupoLabel, texto, tipo, destino, ts, recibido:{}, leido:{}};
-
-  // Guardar en Firebase
-  try{
-    firebase.firestore().collection('mensajes').doc(msgId).set(msgData);
-    // Notificación push al destinatario
-    const destGids = destino==='todos' ? GRUPO_IDS.filter(g=>g!==gid) :
-                     destino==='supervisor' ? ['supervisor'] : [destino];
-    const pushTitulo = grupoLabel + ' → ' + (destino==='todos'?'TODOS':destino==='supervisor'?'SUPERVISOR':('G'+(appConfig.grupos[destino]||destino)));
-    const pushCuerpo = (tipo==='paro'?'🔴 PARO: ':tipo==='ayuda'?'🙋 Ayuda: ':tipo==='bocata'?'🍕 ':'')+texto;
-    destGids.forEach(g=>enviarNotificacionPush(g, pushTitulo, pushCuerpo));
-  }catch(e){}
-
-  // Mostrar localmente con ✓
-  _mostrarMsg(msgData, true);
-}
-
-function enviarMensajeGrupo(gid, inp){
-  if(!inp||!inp.value.trim()) return;
-  const mi = window._modoUsuario||grupoActivo;
-  if(mi!==gid && mi!=='supervisor' && mi!=='admin'){
-    mostrarToast('Solo G'+(appConfig.grupos[gid]||gid)+' puede escribir aquí'); inp.value=''; return;
-  }
-  const texto=inp.value.trim(); inp.value='';
-  abrirModalDestino(gid, texto, 'msg');
-}
-
-function enviarMensajeDirectoTipo(gid, texto, tipo){
-  const mi=window._modoUsuario||grupoActivo;
-  if(mi!==gid && mi!=='supervisor' && mi!=='admin'){
-    mostrarToast('Solo G'+(appConfig.grupos[gid]||gid)+' puede enviar'); return;
-  }
-  abrirModalDestino(gid, texto, tipo);
-}
-
-function enviarMsgSupervisor(inp){
-  if(!inp||!inp.value.trim()) return;
-  const mi=window._modoUsuario||grupoActivo;
-  if(mi!=='supervisor'&&mi!=='admin'){ mostrarToast('Solo el supervisor puede escribir aquí'); inp.value=''; return; }
-  const texto=inp.value.trim(); inp.value='';
-  abrirModalDestino('supervisor', texto, 'msg');
-}
 
 // ── Presencia ──
 window._enLinea = {};
 
 function iniciarPresencia(){
-  const gid=window._modoUsuario;
-  if(!gid||gid==='admin') return;
-  // Limpiar entradas viejas de otros grupos al entrar
+  const gid = window._modoUsuario;
+  if(!gid || gid==='admin') return;
+  // Leer presencia inmediatamente
   try{
     firebase.firestore().collection('presencia').get().then(snap=>{
-      const ahora=Date.now();
-      snap.docs.forEach(d=>{
-        if(ahora - (d.data().ts||0) > 60000) d.ref.delete();
-      });
+      const ahora=Date.now(); window._enLinea={};
+      snap.docs.forEach(d=>{const p=d.data(); if(ahora-p.ts<20000) window._enLinea[p.gid]=p;});
+      _actualizarDots(); _actualizarPlaceholders();
     });
   }catch(e){}
-
+  // Heartbeat cada 15s
   const hb=()=>{
     try{
       firebase.firestore().collection('presencia').doc(gid).set(
         {gid, ts:Date.now(), label:appConfig.grupos[gid]||gid, escribiendo:false},{merge:true}
       );
     }catch(e){}
-    const dot=document.getElementById('presencia-dot-'+gid);
-    if(dot){dot.style.background='var(--green)';dot.title='En línea';}
-    const dot2=document.getElementById('presencia-dot-'+gid+'-inicio');
-    if(dot2){dot2.style.background='var(--green)';dot2.title='En línea';}
+    ['presencia-dot-'+gid,'presencia-dot-'+gid+'-inicio'].forEach(id=>{
+      const dot=document.getElementById(id);
+      if(dot){dot.style.background='var(--green)';dot.title='En línea';}
+    });
   };
   hb(); setInterval(hb,15000);
-  // Leer presencia inmediatamente sin esperar snapshot
+  // Limpiar entradas viejas
   try{
     firebase.firestore().collection('presencia').get().then(snap=>{
-      const ahora=Date.now(); window._enLinea={};
-      snap.docs.forEach(d=>{const p=d.data(); if(ahora-p.ts<20000) window._enLinea[p.gid]=p;});
-      _actualizarDots();
-      _actualizarPlaceholders();
+      const ahora=Date.now();
+      snap.docs.forEach(d=>{ if(ahora-(d.data().ts||0)>60000) d.ref.delete(); });
     });
   }catch(e){}
-  // Limpiar al cerrar
-  window.addEventListener('beforeunload', ()=>{
-    try{ firebase.firestore().collection('presencia').doc(gid).delete(); }catch(e){}
-  });
+  // Listener presencia
   try{
     firebase.firestore().collection('presencia').onSnapshot(snap=>{
       const ahora=Date.now(); window._enLinea={};
       snap.docs.forEach(d=>{const p=d.data(); if(ahora-p.ts<20000) window._enLinea[p.gid]=p;});
-      _actualizarDots();
-      _actualizarPlaceholders();
+      _actualizarDots(); _actualizarPlaceholders();
     });
   }catch(e){}
+  // Limpiar al cerrar
+  window.addEventListener('beforeunload',()=>{
+    try{firebase.firestore().collection('presencia').doc(gid).delete();}catch(e){}
+  });
 }
 
 function _actualizarDots(){
   [...GRUPO_IDS,'supervisor'].forEach(gid=>{
     const ok=window._enLinea&&window._enLinea[gid];
-    // Actualizar dots
-    ['presencia-dot-'+gid, 'presencia-dot-'+gid+'-inicio'].forEach(id=>{
+    ['presencia-dot-'+gid,'presencia-dot-'+gid+'-inicio'].forEach(id=>{
       const dot=document.getElementById(id);
       if(!dot) return;
       dot.style.background=ok?'var(--green)':'var(--border2)';
       dot.title=ok?'En línea':'Desconectado';
     });
-    // Colorear el label del grupo en el Tramo
     const lbl=document.getElementById('tramo-label-'+gid);
-    if(lbl){
-      const colorBase = gid==='supervisor' ? 'var(--purple)' : 'var(--text)';
-      lbl.style.color = ok ? 'var(--green)' : colorBase;
-    }
+    if(lbl) lbl.style.color=ok?'var(--green)':(gid==='supervisor'?'var(--purple)':'var(--text)');
   });
 }
 
 function _actualizarPlaceholders(){
   const ahora=Date.now();
-  GRUPO_IDS.forEach(gid=>{
+  [...GRUPO_IDS,'supervisor'].forEach(gid=>{
     const inp=document.getElementById('inp-placeholder-'+gid)||document.getElementById('gmsg-'+gid);
     if(!inp) return;
     const p=window._enLinea&&window._enLinea[gid];
-    if(!p){inp.placeholder=''; return;}
+    if(!p){inp.placeholder='';return;}
     inp.placeholder=(p.escribiendo&&ahora-p.ts<5000)?'✏ escribiendo...':'● en línea';
   });
 }
@@ -3223,8 +3101,110 @@ function publicarEscribiendo(gid,parar){
   const mi=window._modoUsuario||grupoActivo;
   if(mi!==gid&&mi!=='supervisor'&&mi!=='admin') return;
   clearTimeout(_escTout);
-  try{ firebase.firestore().collection('presencia').doc(mi).set({escribiendo:!parar,ts:Date.now()},{merge:true}); }catch(e){}
+  try{firebase.firestore().collection('presencia').doc(mi).set({escribiendo:!parar,ts:Date.now()},{merge:true});}catch(e){}
   if(!parar) _escTout=setTimeout(()=>publicarEscribiendo(gid,true),3000);
+}
+
+// ── Modal destino ──
+function abrirModalDestino(gid, texto, tipo){
+  const label=appConfig.grupos[gid]||gid.replace('g','G').toUpperCase();
+  _pendingMsg={gid, texto, tipo:tipo||'msg', label, destino:'todos'};
+  document.getElementById('destino-texto').textContent='"'+texto+'"';
+  const btns=document.getElementById('destino-btns');
+  btns.innerHTML='';
+  const sel=(btn,dest)=>{
+    btns.querySelectorAll('button').forEach(b=>{
+      b.style.background='var(--s3)';b.style.color='var(--text)';b.style.borderColor='var(--border2)';
+    });
+    btn.style.background='var(--blue)';btn.style.color='#fff';btn.style.borderColor='var(--blue)';
+    _pendingMsg.destino=dest;
+  };
+  // Todos
+  const bTodos=document.createElement('button');
+  bTodos.textContent='📢 Todos';
+  bTodos.style.cssText='font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid var(--blue);background:var(--blue);color:#fff;cursor:pointer;font-weight:700;';
+  bTodos.onclick=()=>sel(bTodos,'todos');
+  btns.appendChild(bTodos);
+  // Grupos (excepto el propio)
+  GRUPO_IDS.forEach(g2=>{
+    if(g2===gid) return;
+    const lbl2=appConfig.grupos[g2]||g2.replace('g','G').toUpperCase();
+    const online=window._enLinea&&window._enLinea[g2];
+    const b=document.createElement('button');
+    b.innerHTML='G'+lbl2+' <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+(online?'var(--green)':'var(--border2)')+';margin-left:3px;vertical-align:middle;"></span>';
+    b.style.cssText='font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--s3);color:var(--text);cursor:pointer;';
+    b.onclick=()=>sel(b,g2);
+    btns.appendChild(b);
+  });
+  // Supervisor (si no es supervisor quien envía)
+  if(gid!=='supervisor'){
+    const online=window._enLinea&&window._enLinea['supervisor'];
+    const bSup=document.createElement('button');
+    bSup.innerHTML='👑 Supervisor <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+(online?'var(--green)':'var(--border2)')+';margin-left:3px;vertical-align:middle;"></span>';
+    bSup.style.cssText='font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--s3);color:var(--purple);cursor:pointer;';
+    bSup.onclick=()=>{sel(bSup,'supervisor');bSup.style.color='#fff';};
+    btns.appendChild(bSup);
+  }
+  document.getElementById('modal-destino').style.display='flex';
+}
+
+function cerrarModalDestino(){
+  document.getElementById('modal-destino').style.display='none';
+  _pendingMsg=null;
+}
+
+function abrirModalDestinoSupervisor(texto){
+  abrirModalDestino('supervisor', texto, 'msg');
+}
+
+// ── Enviar mensaje ──
+function confirmarEnvioMensaje(){
+  if(!_pendingMsg) return;
+  const {gid, texto, tipo, label, destino}=_pendingMsg;
+  cerrarModalDestino();
+  const ts=Date.now();
+  const msgId=gid+'_'+ts;
+  const grupoLabel=gid==='supervisor'?'SUPERVISOR':'G'+label;
+  window._misMensajes=window._misMensajes||new Set();
+  window._misMensajes.add(ts);
+  setTimeout(()=>window._misMensajes.delete(ts),20000);
+  const msgData={id:msgId,gid,grupoLabel,texto,tipo,destino,ts,recibido:{},leido:{}};
+  try{firebase.firestore().collection('mensajes').doc(msgId).set(msgData);}catch(e){}
+  _mostrarMsg(msgData,true);
+  // Notificaciones push
+  const destGids=destino==='todos'?GRUPO_IDS.filter(g=>g!==gid):destino==='supervisor'?['supervisor']:[destino];
+  const pushTitulo=grupoLabel+' → '+(destino==='todos'?'TODOS':destino==='supervisor'?'SUPERVISOR':('G'+(appConfig.grupos[destino]||destino)));
+  const pushCuerpo=texto;
+  destGids.forEach(g=>enviarNotificacionPush(g,pushTitulo,pushCuerpo));
+}
+
+function enviarMensajeGrupo(gid,inp){
+  if(!inp||!inp.value.trim()) return;
+  const mi=window._modoUsuario||grupoActivo;
+  if(mi!==gid&&mi!=='supervisor'&&mi!=='admin'){
+    mostrarToast('Solo G'+(appConfig.grupos[gid]||gid)+' puede escribir aquí');
+    inp.value=''; return;
+  }
+  const texto=inp.value.trim(); inp.value='';
+  abrirModalDestino(gid,texto,'msg');
+}
+
+function enviarMensajeDirectoTipo(gid,texto,tipo){
+  const mi=window._modoUsuario||grupoActivo;
+  if(mi!==gid&&mi!=='supervisor'&&mi!=='admin'){
+    mostrarToast('Solo G'+(appConfig.grupos[gid]||gid)+' puede enviar');return;
+  }
+  abrirModalDestino(gid,texto,tipo);
+}
+
+function enviarMsgSupervisor(inp){
+  if(!inp||!inp.value.trim()) return;
+  const mi=window._modoUsuario||grupoActivo;
+  if(mi!=='supervisor'&&mi!=='admin'){
+    mostrarToast('Solo el supervisor puede escribir aquí');inp.value='';return;
+  }
+  const texto=inp.value.trim(); inp.value='';
+  abrirModalDestino('supervisor',texto,'msg');
 }
 
 // ── Sonido ──
@@ -3232,11 +3212,11 @@ function sonarAlarmaChat(tipo){
   try{
     const ctx=new(window.AudioContext||window.webkitAudioContext)();
     const cfg={
-      paro:[[1200,600,'sawtooth',0.4,0],[0.25],[0.5],[0.75],[1.0],[1.25]],
-      ayuda:[[400,800,'sine',0.3,0],[0.3],[0.6],[0.9],[1.2],[1.5]],
-      bocata:[[600,800,'sine',0.2,0],[0.4],[0.8],[1.2]],
-      nodisponible:[[800,400,'triangle',0.25,0],[0.35],[0.7]],
-      msg:[[700,900,'sine',0.2,0],[0.25],[0.5]]
+      paro:[[1200,600,'sawtooth',0.4],[0.25],[0.5],[0.75],[1.0],[1.25]],
+      ayuda:[[400,800,'sine',0.3],[0.3],[0.6],[0.9],[1.2],[1.5]],
+      bocata:[[600,800,'sine',0.2],[0.4],[0.8],[1.2]],
+      nodisponible:[[800,400,'triangle',0.25],[0.35],[0.7]],
+      msg:[[700,900,'sine',0.2],[0.25],[0.5]]
     };
     const p=cfg[tipo]||cfg.msg;
     const [f1,f2,wave,vol]=p[0];
@@ -3253,21 +3233,21 @@ function sonarAlarmaChat(tipo){
   }catch(e){}
 }
 
-// ── Botón leído (por grupo) ──
+// ── Botón leído ──
 function actualizarBtnLeerTodo(){
   const mi=window._modoUsuario||grupoActivo;
   [...GRUPO_IDS,'supervisor'].forEach(gid=>{
     const btn=document.getElementById('btn-leer-'+gid);
     if(!btn) return;
     const esMio=gid===mi||mi==='admin'||(mi==='supervisor'&&gid==='supervisor');
-    // Contar solo mensajes que afectan a este grupo
+    // Contar pendientes que afectan a este grupo
     const n=[..._msgsPendientes].filter(id=>{
-      const info=window._msgDestinos&&window._msgDestinos[id];
-      const dest=info?info.dest:'todos';
+      const dest=_msgDestinos[id]||'todos';
       return dest==='todos'||dest===gid||(gid==='supervisor'&&dest==='supervisor');
     }).length;
     const ico=document.getElementById('btn-leer-icono-'+gid);
     const cnt=document.getElementById('btn-leer-count-'+gid);
+    btn.style.display='flex';
     if(n>0&&esMio){
       btn.style.borderColor='var(--green)';btn.style.background='var(--green-dim)';
       btn.style.color='var(--green)';btn.style.opacity='1';
@@ -3285,20 +3265,17 @@ function actualizarBtnLeerTodo(){
 function leerMensajesGrupo(gid){
   const mi=window._modoUsuario||grupoActivo;
   if(mi!==gid&&mi!=='supervisor'&&mi!=='admin') return;
-  // Solo leer mensajes dirigidos a este grupo
   [..._msgsPendientes].forEach(msgId=>{
-    const info = window._msgDestinos && window._msgDestinos[msgId];
-    const dest = info ? info.dest : 'todos';
-    const meAfecta = dest==='todos' || dest===gid || (gid==='supervisor'&&dest==='supervisor');
+    const dest=_msgDestinos[msgId]||'todos';
+    const meAfecta=dest==='todos'||dest===gid||(gid==='supervisor'&&dest==='supervisor');
     if(meAfecta) _marcarLeidoMsg(msgId);
   });
 }
 
-// ── Mostrar mensaje en slider ──
+// ── Mostrar mensaje ──
 function _mostrarMsg(msg, esPropio){
   const track=document.getElementById('avisos-track');
   if(!track) return;
-  // Quitar "Sin avisos"
   track.querySelectorAll('span:not(.chat-avisos)').forEach(s=>{
     if(s.textContent.includes('Sin avisos')) s.style.display='none';
   });
@@ -3309,48 +3286,39 @@ function _mostrarMsg(msg, esPropio){
     chatDiv.style.cssText='display:inline-flex;gap:16px;align-items:center;white-space:nowrap;';
     track.appendChild(chatDiv);
   }
-
   const mi=window._modoUsuario||grupoActivo;
   const dest=msg.destino||'todos';
-  const meAfecta=dest==='todos'||dest===mi||mi==='supervisor'||mi==='admin';
+  const meAfecta=dest==='todos'||dest===mi||mi==='supervisor'||mi==='admin'||
+                 (mi==='supervisor'&&dest==='supervisor');
   if(!esPropio&&!meAfecta) return;
-  if(_msgsActivos[msg.id]) return; // evitar duplicados
+  if(_msgsActivos[msg.id]) return;
 
   const span=document.createElement('span');
   span.id='msg-'+msg.id;
   span.className='aviso-item chat-msg';
-
   const hora=new Date(msg.ts).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});
   const tipo=msg.tipo||'msg';
   const ico=tipo==='paro'?'🔴':tipo==='ayuda'?'🙋':tipo==='bocata'?'🍕':tipo==='nodisponible'?'⛔':'💬';
   const destStr=dest==='todos'?'→TODOS':dest==='supervisor'?'→SUP':'→G'+(appConfig.grupos[dest]||dest.replace('g','G').toUpperCase());
-
   span.innerHTML='<span style="color:var(--blue);font-weight:700;">'+msg.grupoLabel+'</span> '
     +'<span style="color:var(--muted2);font-size:9px;">'+destStr+'</span> '
-    +'<span style="color:var(--text);">'+ico+' '+msg.texto+'</span> '
+    +ico+' <span style="color:var(--text);">'+msg.texto+'</span> '
     +'<span style="color:var(--muted);font-size:9px;">'+hora+'</span>'
     +'<span id="ticks-'+msg.id+'" style="margin-left:4px;">'+(esPropio?'<span style="color:var(--muted2);">✓</span>':'')+'</span>';
-
   chatDiv.appendChild(span);
   _msgsActivos[msg.id]=span;
 
   if(!esPropio&&meAfecta){
-    // Añadir a pendientes con info del destino
     _msgsPendientes.add(msg.id);
-    // Guardar qué grupo debe leerlo
-    if(!window._msgDestinos) window._msgDestinos = {};
-    window._msgDestinos[msg.id] = {dest: msg.destino, gid: msg.gid};
+    _msgDestinos[msg.id]=dest;
     actualizarBtnLeerTodo();
     sonarAlarmaChat(tipo);
-    // Notificar recibido
     try{
-      const _upd1={}; _upd1['recibido.'+mi]=true; firebase.firestore().collection('mensajes').doc(msg.id).update(_upd1);
+      const u={}; u['recibido.'+mi]=true;
+      firebase.firestore().collection('mensajes').doc(msg.id).update(u);
     }catch(e){}
-    // Sin repetición de sonido — solo suena una vez al recibir
-    span._intv=null;
   }
-
-  // Auto-quitar en 10 minutos si no se lee
+  // Auto-quitar en 10 min
   const tout=setTimeout(()=>_quitarMsg(msg.id),10*60*1000);
   span._tout=tout;
 }
@@ -3359,18 +3327,18 @@ function _marcarLeidoMsg(msgId){
   const mi=window._modoUsuario||grupoActivo;
   _msgsLeidos.add(msgId);
   _msgsPendientes.delete(msgId);
+  delete _msgDestinos[msgId];
   actualizarBtnLeerTodo();
-  // Quitar del slider en 1 minuto
-  setTimeout(()=>_quitarMsg(msgId), 60*1000);
-  // Actualizar Firebase
+  setTimeout(()=>_quitarMsg(msgId),60*1000);
   try{
-    const _upd2={}; _upd2['leido.'+mi]=true; firebase.firestore().collection('mensajes').doc(msgId).update(_upd2);
+    const u={}; u['leido.'+mi]=true;
+    firebase.firestore().collection('mensajes').doc(msgId).update(u);
   }catch(e){}
 }
 
 function _quitarMsg(msgId){
   const span=document.getElementById('msg-'+msgId);
-  if(span){ clearInterval(span._intv); clearTimeout(span._tout); span.remove(); }
+  if(span){clearTimeout(span._tout);span.remove();}
   delete _msgsActivos[msgId];
 }
 
@@ -3387,33 +3355,33 @@ function iniciarChatListener(){
         snap.docChanges().forEach(ch=>{
           const msg=ch.doc.data();
           if(!msg||!msg.id) return;
-          // Actualizar ticks del remitente
+          // Actualizar ticks
           if(ch.type==='modified'){
             const tickEl=document.getElementById('ticks-'+msg.id);
             if(tickEl&&_msgsActivos[msg.id]){
-              const nRecib=Object.keys(msg.recibido||{}).length;
-              const nLeido=Object.keys(msg.leido||{}).length;
-              const nDest=msg.destino==='todos'?GRUPO_IDS.filter(g=>g!==msg.gid).length+1:1;
-              if(nLeido>=nDest) tickEl.innerHTML='<span style="color:#3B82F6;">✓✓</span>';
-              else if(nRecib>=nDest) tickEl.innerHTML='<span style="color:var(--muted2);">✓✓</span>';
+              const nL=Object.keys(msg.leido||{}).length;
+              const nR=Object.keys(msg.recibido||{}).length;
+              const nD=msg.destino==='todos'?GRUPO_IDS.filter(g=>g!==msg.gid).length+1:1;
+              if(nL>=nD) tickEl.innerHTML='<span style="color:#3B82F6;">✓✓</span>';
+              else if(nR>=nD) tickEl.innerHTML='<span style="color:var(--muted2);">✓✓</span>';
               else tickEl.innerHTML='<span style="color:var(--muted2);">✓</span>';
-              // Quitar del remitente cuando todos leyeron
-              if(nLeido>=nDest&&msg.gid===mi) setTimeout(()=>_quitarMsg(msg.id),2000);
+              if(nL>=nD&&msg.gid===mi) setTimeout(()=>_quitarMsg(msg.id),2000);
             }
             return;
           }
           if(ch.type!=='added') return;
-          if(Date.now()-msg.ts>10*60*1000) return; // ignorar >10min // ignorar >1min
+          if(Date.now()-msg.ts>10*60*1000) return;
           if(window._misMensajes&&window._misMensajes.has(msg.ts)) return;
           if(msg.gid===mi) return;
           const dest=msg.destino||'todos';
-          const me=dest==='todos'||dest===mi||mi==='supervisor'||mi==='admin';
+          const me=dest==='todos'||dest===mi||mi==='supervisor'||mi==='admin'||
+                    (mi==='supervisor'&&dest==='supervisor');
           if(!me) return;
           if(_msgsActivos[msg.id]) return;
-          _mostrarMsg(msg, false);
+          _mostrarMsg(msg,false);
         });
       });
-  }catch(e){ console.warn('listener:',e); _chatListenerActivo=false; }
+  }catch(e){console.warn('listener:',e);_chatListenerActivo=false;}
 }
 
 function cargarMensajes(){
@@ -3425,34 +3393,32 @@ function cargarMensajes(){
         snap.docs.reverse().forEach(d=>{
           const msg=d.data();
           if(!msg||!msg.id) return;
-          if(Date.now()-msg.ts>10*60*1000) return; // ignorar >10min
+          if(Date.now()-msg.ts>10*60*1000) return;
           if(window._misMensajes&&window._misMensajes.has(msg.ts)) return;
           const dest=msg.destino||'todos';
           const esPropio=msg.gid===mi;
-          const me=dest==='todos'||dest===mi||mi==='supervisor'||mi==='admin';
+          const me=dest==='todos'||dest===mi||mi==='supervisor'||mi==='admin'||
+                    (mi==='supervisor'&&dest==='supervisor');
           if(!esPropio&&!me) return;
           if(_msgsActivos[msg.id]){
-            // Ya está en slider — comprobar si falta en pendientes
-            if(!esPropio && !_msgsLeidos.has(msg.id) && !_msgsPendientes.has(msg.id)){
-              const dest2=msg.destino||'todos';
-              const me2=dest2==='todos'||dest2===mi||mi==='supervisor'||mi==='admin';
+            if(!esPropio&&!_msgsLeidos.has(msg.id)&&!_msgsPendientes.has(msg.id)){
+              const me2=dest==='todos'||dest===mi||mi==='supervisor'||mi==='admin';
               if(me2){
                 _msgsPendientes.add(msg.id);
-                if(!window._msgDestinos) window._msgDestinos={};
-                window._msgDestinos[msg.id]={dest:msg.destino,gid:msg.gid};
+                _msgDestinos[msg.id]=dest;
                 actualizarBtnLeerTodo();
               }
             }
             return;
           }
-          _mostrarMsg(msg, esPropio);
+          _mostrarMsg(msg,esPropio);
         });
       });
   }catch(e){}
 }
 
-// ── Avisos de sistema (revisiones médicas) ──
-function mostrarMsgEnAvisos(grupo, texto, tipo){
+// ── Avisos sistema (rev med, agenda) ──
+function mostrarMsgEnAvisos(grupo,texto,tipo){
   const track=document.getElementById('avisos-track');
   if(!track) return;
   let chatDiv=track.querySelector('.chat-avisos');
@@ -3464,7 +3430,7 @@ function mostrarMsgEnAvisos(grupo, texto, tipo){
   }
   const span=document.createElement('span');
   span.className='aviso-item';
-  span.style.color=tipo==='revmed'?'var(--orange)':tipo==='agenda'?'var(--orange)':'var(--text)';
+  span.style.color=tipo==='agenda'?'var(--orange)':tipo==='revmed'?'var(--orange)':'var(--text)';
   if(tipo==='agenda') span.style.animation='parpadeo 1.2s infinite';
   const hora=new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});
   span.innerHTML='<span style="font-weight:700;">'+grupo+'</span> '+texto+' <span style="color:var(--muted);font-size:9px;">'+hora+'</span>';
@@ -3481,292 +3447,6 @@ function enviarAlerta(){}
 function _enviarChatMsg(){}
 function renderMensajes(){}
 
-
-
-// ══ REVISIONES MÉDICAS ══
-function comprobarRevisionesMedicas(){
-  const ahora = new Date();
-  const ahoraMs = ahora.getTime();
-
-  GRUPO_IDS.forEach(gid=>{
-    const g = GRUPOS_DATA[gid];
-    const label = appConfig.grupos[gid]||gid.replace('g','G').toUpperCase();
-    (g.operarios||[]).forEach(op=>{
-      if(!op.nombre || op.hueco || !op.revFecha || op.revHecha) return;
-
-      const fechaRev = new Date(op.revFecha + 'T08:00:00');
-      const msRev = fechaRev.getTime();
-      if(msRev <= ahoraMs) return; // ya pasó
-
-      // Calcular horas laborables hasta la revisión
-      // Contar días laborables entre hoy y la revisión
-      let diasLaborables = 0;
-      let d = new Date(ahora);
-      d.setHours(0,0,0,0);
-      const revDia = new Date(fechaRev);
-      revDia.setHours(0,0,0,0);
-      while(d < revDia){
-        d.setDate(d.getDate()+1);
-        const dow = d.getDay(); // 0=dom, 6=sab
-        if(dow !== 0 && dow !== 6) diasLaborables++;
-      }
-
-      // Avisar si quedan 2 días laborables o menos (cubre fin de semana)
-      const diffHoras = Math.round((msRev - ahoraMs) / 3600000);
-      if(diasLaborables <= 2 && diasLaborables >= 0){
-        const nombre = op.apodo || op.nombre.split(' ')[0];
-        const fechaStr = fechaRev.toLocaleDateString('es',{weekday:'short',day:'2-digit',month:'short'});
-        const aviso = diasLaborables===0
-          ? nombre+' (G'+label+') · Rev. médica HOY · '+fechaStr
-          : nombre+' (G'+label+') · Rev. médica en '+diasLaborables+' día'+(diasLaborables>1?'s laborables':' laborable')+' · '+fechaStr;
-        mostrarMsgEnAvisos('⚕️ REV MED', aviso, 'revmed');
-      }
-    });
-  });
-}
-
-// Comprobar al cargar y cada hora
-setTimeout(comprobarRevisionesMedicas, 1000);
-setInterval(comprobarRevisionesMedicas, 60*60*1000);
-
-
-// ══ AGENDA DE AUSENCIAS ══
-let _agendaGid = null;
-let _agendaOpId = null;
-
-function abrirAgendaOp(gid, opId){
-  _agendaGid = gid;
-  _agendaOpId = opId;
-  const op = GRUPOS_DATA[gid] && GRUPOS_DATA[gid].operarios.find(o=>o.id===opId);
-  if(!op) return;
-  const nombre = op.apodo || op.nombre.split(' ')[0];
-  document.getElementById('agenda-titulo').textContent = '📅 ' + nombre;
-  document.getElementById('agenda-lista').innerHTML = '';
-  const hoy = new Date().toISOString().slice(0,10);
-  document.getElementById('agenda-fecha').value = hoy;
-  document.getElementById('agenda-hora-ini').value = '';
-  document.getElementById('agenda-hora-fin').value = '';
-  const _motivo = document.getElementById('agenda-motivo').value;
-  toggleAgendaCampos(_motivo);
-  document.getElementById('agenda-hora-fin').value = '';
-  document.getElementById('agenda-nota').value = '';
-  renderAgendaLista(op);
-  document.getElementById('modal-agenda').style.display = 'flex';
-}
-
-function toggleAgendaCampos(motivo){
-  const horasDiv = document.getElementById('agenda-horas-div');
-  const hastaDiv = document.getElementById('agenda-hasta-div');
-  if(motivo === 'jornada'){
-    if(horasDiv) horasDiv.style.display='none';
-    if(hastaDiv) hastaDiv.style.display='block';
-  } else {
-    if(horasDiv) horasDiv.style.display='flex';
-    if(hastaDiv) hastaDiv.style.display='none';
-  }
-}
-
-function abrirAgenda(ev, gid, opId){
-  if(ev) ev.stopPropagation();
-  _agendaGid = gid;
-  _agendaOpId = opId;
-  const op = GRUPOS_DATA[gid].operarios.find(o=>o.id===opId);
-  if(!op) return;
-  const nombre = op.apodo || op.nombre.split(' ')[0];
-  document.getElementById('agenda-titulo').textContent = '📅 ' + nombre;
-  // Poner fecha de hoy por defecto
-  const hoy = new Date().toISOString().slice(0,10);
-  document.getElementById('agenda-fecha').value = hoy;
-  document.getElementById('agenda-hora-ini').value = '';
-  document.getElementById('agenda-hora-fin').value = '';
-  const _motivo = document.getElementById('agenda-motivo').value;
-  toggleAgendaCampos(_motivo);
-  document.getElementById('agenda-hora-fin').value = '';
-  document.getElementById('agenda-nota').value = '';
-  // Renderizar ausencias existentes
-  renderAgendaLista(op);
-  document.getElementById('modal-agenda').style.display='flex';
-}
-
-function cerrarAgenda(){
-  document.getElementById('modal-agenda').style.display='none';
-  _agendaGid = null; _agendaOpId = null;
-}
-
-function renderAgendaLista(op){
-  const lista = document.getElementById('agenda-lista');
-  const ausencias = op.ausencias || [];
-  if(!ausencias.length){
-    lista.innerHTML = '<div style="font-size:11px;color:var(--muted2);text-align:center;padding:8px;">Sin ausencias registradas</div>';
-    return;
-  }
-  const iconos = {permiso:'📋',formacion:'📚',retraso:'⏰',salida:'🚪',jornada:'🏭',otro:'💬'};
-  lista.innerHTML = ausencias.map((a,i)=>{
-    const ico = iconos[a.motivo]||'💬';
-    const fechaStr = a.motivo==='jornada' && a.fechaFin
-      ? new Date(a.fecha+'T12:00:00').toLocaleDateString('es',{day:'2-digit',month:'short'})+' → '+new Date(a.fechaFin+'T12:00:00').toLocaleDateString('es',{day:'2-digit',month:'short'})
-      : new Date(a.fecha+'T12:00:00').toLocaleDateString('es',{weekday:'short',day:'2-digit',month:'short'});
-    const horaStr = a.horaIni ? (a.horaIni + (a.horaFin?'-'+a.horaFin:'')) : 'Día completo';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--s3);border-radius:6px;border:1px solid var(--border2);">'
-      +'<span style="font-size:14px;">'+ico+'</span>'
-      +'<div style="flex:1;">'
-        +'<div style="font-size:11px;font-weight:600;color:var(--text);">'+fechaStr+' · '+horaStr+'</div>'
-        +'<div style="font-size:10px;color:var(--muted2);">'+(a.nota||a.motivo)+'</div>'
-      +'</div>'
-      +'<button onclick="eliminarAusencia('+i+')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:2px 4px;">✕</button>'
-    +'</div>';
-  }).join('');
-}
-
-function guardarAgenda(){
-  if(!_agendaGid || !_agendaOpId) return;
-  const fecha = document.getElementById('agenda-fecha').value;
-  if(!fecha){ mostrarToast('⚠ Selecciona una fecha'); return; }
-  const motivo = document.getElementById('agenda-motivo').value;
-  const horaIni = document.getElementById('agenda-hora-ini').value;
-  const horaFin = document.getElementById('agenda-hora-fin').value;
-  const nota = document.getElementById('agenda-nota').value.trim();
-
-  const op = GRUPOS_DATA[_agendaGid].operarios.find(o=>o.id===_agendaOpId);
-  if(!op) return;
-  if(!op.ausencias) op.ausencias = [];
-  const fechaFin = motivo==='jornada' ? (document.getElementById('agenda-fecha-fin').value||'') : '';
-  op.ausencias.push({motivo, fecha, fechaFin, horaIni, horaFin, nota, ts:Date.now()});
-  op.ausencias.sort((a,b)=>a.fecha.localeCompare(b.fecha));
-
-  guardar();
-  renderAgendaLista(op);
-  renderOpList();
-  mostrarToast('📅 Ausencia registrada');
-  // Limpiar
-  document.getElementById('agenda-hora-ini').value='';
-  document.getElementById('agenda-hora-fin').value='';
-  document.getElementById('agenda-nota').value='';
-}
-
-function eliminarAusencia(idx){
-  if(!_agendaGid || !_agendaOpId) return;
-  const op = GRUPOS_DATA[_agendaGid].operarios.find(o=>o.id===_agendaOpId);
-  if(!op || !op.ausencias) return;
-  op.ausencias.splice(idx,1);
-  guardar();
-  renderAgendaLista(op);
-  renderOpList();
-}
-
-// ── Avisos de agenda ──
-function comprobarAgenda(){
-  const ahora = new Date();
-  const ahoraMs = ahora.getTime();
-
-  GRUPO_IDS.forEach(gid=>{
-    const g = GRUPOS_DATA[gid];
-    const label = appConfig.grupos[gid]||gid.replace('g','G').toUpperCase();
-    (g.operarios||[]).forEach(op=>{
-      if(!op.nombre||op.hueco||!op.ausencias||!op.ausencias.length) return;
-      const nombre = op.apodo || op.nombre.split(' ')[0];
-      op.ausencias.forEach(a=>{
-        const fechaAus = new Date(a.fecha+'T08:00:00');
-        const msAus = fechaAus.getTime();
-        if(msAus <= ahoraMs) return; // ya pasó
-
-        // Contar días laborables
-        let diasLab = 0;
-        let d = new Date(ahora); d.setHours(0,0,0,0);
-        const dAus = new Date(fechaAus); dAus.setHours(0,0,0,0);
-        while(d < dAus){
-          d.setDate(d.getDate()+1);
-          const dow=d.getDay();
-          if(dow!==0&&dow!==6) diasLab++;
-        }
-
-        // Avisar según tipo: jornada = 7 días antes, resto = 1 día laborable antes
-        const diasAviso = a.motivo==='jornada' ? 7 : 1;
-        const usarCalendario = a.motivo==='jornada';
-        const diffDias = Math.round((msAus - ahoraMs) / (24*3600*1000));
-        const dentroDeAviso = usarCalendario ? (diffDias<=diasAviso && diffDias>=0) : (diasLab<=diasAviso);
-        if(dentroDeAviso){
-          const iconos={permiso:'📋',formacion:'📚',retraso:'⏰',salida:'🚪',jornada:'🏭',otro:'💬'};
-          const ico = iconos[a.motivo]||'💬';
-          const fechaStr = fechaAus.toLocaleDateString('es',{weekday:'short',day:'2-digit',month:'short'});
-          const horaStr = a.horaIni ? ' · '+a.horaIni+(a.horaFin?'-'+a.horaFin:'') : '';
-          const texto = nombre+' (G'+label+') · '+(a.nota||a.motivo)+horaStr+' · '+fechaStr;
-          mostrarMsgEnAvisos(ico+' AGENDA', texto, 'agenda');
-        }
-      });
-    });
-  });
-}
-
-// Comprobar al cargar y cada hora
-setTimeout(comprobarAgenda, 1500);
-setInterval(comprobarAgenda, 60*60*1000);
-
-
-// ══ NOTIFICACIONES PUSH ══
-const VAPID_KEY = 'BNqDYc8T3g64E4fPFAukk6258umfLIUvVlFQBuhLandTkI4ISRpRYkFJeo120dZlmkBv6UvbCxz7r7zKVnr970Q';
-
-function urlBase64ToUint8Array(base64String){
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for(let i=0; i<rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
-  return outputArray;
-}
-
-async function activarNotificaciones(){
-  try{
-    if(!('Notification' in window) || !('serviceWorker' in navigator)) return;
-    const permiso = await Notification.requestPermission();
-    if(permiso !== 'granted'){ console.log('Notificaciones denegadas'); return; }
-    const reg = await navigator.serviceWorker.ready;
-    let sub = await reg.pushManager.getSubscription();
-    if(!sub){
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_KEY)
-      });
-    }
-    // Guardar suscripción en Firebase asociada al grupo
-    const gid = window._modoUsuario || grupoActivo;
-    if(gid && gid !== 'admin'){
-      try{
-        firebase.firestore().collection('push_subs').doc(gid).set({
-          gid, sub: JSON.stringify(sub), ts: Date.now()
-        }, {merge: true});
-        console.log('Push activado para', gid);
-      }catch(e){}
-    }
-  }catch(e){ console.warn('Push error:', e); }
-}
-
-async function enviarNotificacionPush(destGid, titulo, cuerpo){
-  // Obtener suscripción del destinatario
-  try{
-    const doc = await firebase.firestore().collection('push_subs').doc(destGid).get();
-    if(!doc.exists) return;
-    const subStr = doc.data().sub;
-    // Llamar a Firebase Cloud Function o endpoint de notificación
-    // Como no tenemos servidor, usamos FCM directamente desde el cliente (legacy API)
-    await fetch('https://fcm.googleapis.com/fcm/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'key=ziRcjoWlsGJipQHTV8_iM14Nf8z6x8CPC_yoHwoomDc'
-      },
-      body: JSON.stringify({
-        notification: {
-          title: titulo,
-          body: cuerpo,
-          icon: 'icon-192.png'
-        },
-        to: JSON.parse(subStr).keys?.auth ? undefined : JSON.parse(subStr).endpoint,
-        web_push_subscription: JSON.parse(subStr)
-      })
-    });
-  }catch(e){ console.warn('enviarPush error:', e); }
-}
 
 
 function actualizarSelectsGrupo(){
