@@ -3035,7 +3035,7 @@ function iniciarPresencia(){
   try{
     firebase.firestore().collection('presencia').get().then(snap=>{
       const ahora=Date.now(); window._enLinea={};
-      snap.docs.forEach(d=>{const p=d.data(); if(ahora-p.ts<20000) window._enLinea[p.gid]=p;});
+      snap.docs.forEach(d=>{const p=d.data(); if(ahora-p.ts<16000) window._enLinea[p.gid]=p;});
       _actualizarDots(); _actualizarPlaceholders();
     });
   }catch(e){}
@@ -3063,7 +3063,7 @@ function iniciarPresencia(){
   try{
     firebase.firestore().collection('presencia').onSnapshot(snap=>{
       const ahora=Date.now(); window._enLinea={};
-      snap.docs.forEach(d=>{const p=d.data(); if(ahora-p.ts<20000) window._enLinea[p.gid]=p;});
+      snap.docs.forEach(d=>{const p=d.data(); if(ahora-p.ts<16000) window._enLinea[p.gid]=p;});
       _actualizarDots(); _actualizarPlaceholders();
     });
   }catch(e){}
@@ -3449,6 +3449,191 @@ function enviarAlerta(){}
 function _enviarChatMsg(){}
 function renderMensajes(){}
 
+
+
+// ══ AGENDA DE AUSENCIAS ══
+let _agendaGid = null;
+let _agendaOpId = null;
+
+function abrirAgendaOp(gid, opId){
+  _agendaGid = gid;
+  _agendaOpId = opId;
+  const op = GRUPOS_DATA[gid] && GRUPOS_DATA[gid].operarios.find(o=>o.id===opId);
+  if(!op) return;
+  const nombre = op.apodo || op.nombre.split(' ')[0];
+  document.getElementById('agenda-titulo').textContent = '📅 ' + nombre;
+  const hoy = new Date().toISOString().slice(0,10);
+  document.getElementById('agenda-fecha').value = hoy;
+  document.getElementById('agenda-hora-ini').value = '';
+  document.getElementById('agenda-hora-fin').value = '';
+  document.getElementById('agenda-nota').value = '';
+  const motivo = document.getElementById('agenda-motivo').value;
+  toggleAgendaCampos(motivo);
+  renderAgendaLista(op);
+  document.getElementById('modal-agenda').style.display = 'flex';
+}
+
+function abrirAgenda(ev, gid, opId){
+  if(ev) ev.stopPropagation();
+  abrirAgendaOp(gid, opId);
+}
+
+function cerrarAgenda(){
+  document.getElementById('modal-agenda').style.display = 'none';
+  _agendaGid = null; _agendaOpId = null;
+}
+
+function toggleAgendaCampos(motivo){
+  const horasDiv = document.getElementById('agenda-horas-div');
+  const hastaDiv = document.getElementById('agenda-hasta-div');
+  if(motivo === 'jornada'){
+    if(horasDiv) horasDiv.style.display='none';
+    if(hastaDiv) hastaDiv.style.display='block';
+  } else {
+    if(horasDiv) horasDiv.style.display='flex';
+    if(hastaDiv) hastaDiv.style.display='none';
+  }
+}
+
+function renderAgendaLista(op){
+  const lista = document.getElementById('agenda-lista');
+  const ausencias = op.ausencias || [];
+  if(!ausencias.length){
+    lista.innerHTML = '<div style="font-size:11px;color:var(--muted2);text-align:center;padding:8px;">Sin ausencias registradas</div>';
+    return;
+  }
+  const iconos = {permiso:'📋',formacion:'📚',retraso:'⏰',salida:'🚪',jornada:'🏭',otro:'💬'};
+  lista.innerHTML = ausencias.map((a,i)=>{
+    const ico = iconos[a.motivo]||'💬';
+    const fechaStr = a.motivo==='jornada' && a.fechaFin
+      ? new Date(a.fecha+'T12:00:00').toLocaleDateString('es',{day:'2-digit',month:'short'})+' → '+new Date(a.fechaFin+'T12:00:00').toLocaleDateString('es',{day:'2-digit',month:'short'})
+      : new Date(a.fecha+'T12:00:00').toLocaleDateString('es',{weekday:'short',day:'2-digit',month:'short'});
+    const horaStr = a.horaIni ? (a.horaIni+(a.horaFin?'-'+a.horaFin:'')) : 'Día completo';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--s3);border-radius:6px;border:1px solid var(--border2);">'
+      +'<span style="font-size:14px;">'+ico+'</span>'
+      +'<div style="flex:1;">'
+        +'<div style="font-size:11px;font-weight:600;color:var(--text);">'+fechaStr+' · '+horaStr+'</div>'
+        +'<div style="font-size:10px;color:var(--muted2);">'+(a.nota||a.motivo)+'</div>'
+      +'</div>'
+      +'<button onclick="eliminarAusencia('+i+')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:2px 4px;">✕</button>'
+    +'</div>';
+  }).join('');
+}
+
+function guardarAgenda(){
+  if(!_agendaGid || !_agendaOpId) return;
+  const fecha = document.getElementById('agenda-fecha').value;
+  if(!fecha){ mostrarToast('⚠ Selecciona una fecha'); return; }
+  const motivo = document.getElementById('agenda-motivo').value;
+  const horaIni = document.getElementById('agenda-hora-ini').value;
+  const horaFin = document.getElementById('agenda-hora-fin').value;
+  const nota = document.getElementById('agenda-nota').value.trim();
+  const fechaFin = motivo==='jornada' ? (document.getElementById('agenda-fecha-fin').value||'') : '';
+  const op = GRUPOS_DATA[_agendaGid].operarios.find(o=>o.id===_agendaOpId);
+  if(!op) return;
+  if(!op.ausencias) op.ausencias = [];
+  op.ausencias.push({motivo, fecha, fechaFin, horaIni, horaFin, nota, ts:Date.now()});
+  op.ausencias.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  guardar();
+  renderAgendaLista(op);
+  renderOpList();
+  mostrarToast('📅 Ausencia registrada');
+  document.getElementById('agenda-hora-ini').value='';
+  document.getElementById('agenda-hora-fin').value='';
+  document.getElementById('agenda-nota').value='';
+}
+
+function eliminarAusencia(idx){
+  if(!_agendaGid || !_agendaOpId) return;
+  const op = GRUPOS_DATA[_agendaGid].operarios.find(o=>o.id===_agendaOpId);
+  if(!op || !op.ausencias) return;
+  op.ausencias.splice(idx,1);
+  guardar();
+  renderAgendaLista(op);
+  renderOpList();
+}
+
+// ── Avisos de agenda ──
+function comprobarAgenda(){
+  const ahora = new Date();
+  const ahoraMs = ahora.getTime();
+  GRUPO_IDS.forEach(gid=>{
+    const g = GRUPOS_DATA[gid];
+    const label = appConfig.grupos[gid]||gid.replace('g','G').toUpperCase();
+    (g.operarios||[]).forEach(op=>{
+      if(!op.nombre||op.hueco||!op.ausencias||!op.ausencias.length) return;
+      const nombre = op.apodo || op.nombre.split(' ')[0];
+      op.ausencias.forEach(a=>{
+        const fechaAus = new Date(a.fecha+'T08:00:00');
+        const msAus = fechaAus.getTime();
+        if(msAus <= ahoraMs) return;
+        let diasLab = 0;
+        let d = new Date(ahora); d.setHours(0,0,0,0);
+        const dAus = new Date(fechaAus); dAus.setHours(0,0,0,0);
+        while(d < dAus){ d.setDate(d.getDate()+1); const dow=d.getDay(); if(dow!==0&&dow!==6) diasLab++; }
+        const diasAviso = a.motivo==='jornada' ? 7 : 1;
+        const usarCalendario = a.motivo==='jornada';
+        const diffDias = Math.round((msAus-ahoraMs)/(24*3600*1000));
+        const dentroDeAviso = usarCalendario ? (diffDias<=diasAviso&&diffDias>=0) : (diasLab<=diasAviso);
+        if(dentroDeAviso){
+          const iconos={permiso:'📋',formacion:'📚',retraso:'⏰',salida:'🚪',jornada:'🏭',otro:'💬'};
+          const ico = iconos[a.motivo]||'💬';
+          const fechaStr = fechaAus.toLocaleDateString('es',{weekday:'short',day:'2-digit',month:'short'});
+          const horaStr = a.horaIni ? ' · '+a.horaIni+(a.horaFin?'-'+a.horaFin:'') : '';
+          mostrarMsgEnAvisos(ico+' AGENDA', nombre+' (G'+label+') · '+(a.nota||a.motivo)+horaStr+' · '+fechaStr, 'agenda');
+        }
+      });
+    });
+  });
+}
+
+// ── Revisiones médicas ──
+function comprobarRevisionesMedicas(){
+  const ahora = new Date();
+  const ahoraMs = ahora.getTime();
+  GRUPO_IDS.forEach(gid=>{
+    const g = GRUPOS_DATA[gid];
+    const label = appConfig.grupos[gid]||gid.replace('g','G').toUpperCase();
+    (g.operarios||[]).forEach(op=>{
+      if(!op.nombre||op.hueco||!op.revFecha||op.revHecha) return;
+      const fechaRev = new Date(op.revFecha+'T08:00:00');
+      const msRev = fechaRev.getTime();
+      if(msRev<=ahoraMs) return;
+      let diasLab=0;
+      let d=new Date(ahora); d.setHours(0,0,0,0);
+      const dRev=new Date(fechaRev); dRev.setHours(0,0,0,0);
+      while(d<dRev){d.setDate(d.getDate()+1);const dow=d.getDay();if(dow!==0&&dow!==6)diasLab++;}
+      if(diasLab<=2){
+        const nombre=op.apodo||op.nombre.split(' ')[0];
+        const fechaStr=fechaRev.toLocaleDateString('es',{weekday:'short',day:'2-digit',month:'short'});
+        const aviso=diasLab===0?nombre+' (G'+label+') · Rev. médica HOY · '+fechaStr
+          :nombre+' (G'+label+') · Rev. médica en '+diasLab+' día'+(diasLab>1?'s laborables':' laborable')+' · '+fechaStr;
+        mostrarMsgEnAvisos('⚕️ REV MED', aviso, 'revmed');
+      }
+    });
+  });
+}
+
+// ── Ausencias automáticas ──
+function aplicarAusenciasHoy(){
+  const hoy = new Date().toISOString().slice(0,10);
+  GRUPO_IDS.forEach(gid=>{
+    (GRUPOS_DATA[gid].operarios||[]).forEach(op=>{
+      if(!op.ausencias||!op.ausencias.length) return;
+      const tieneHoy = op.ausencias.some(a=>{
+        if(a.motivo==='jornada') return hoy>=a.fecha&&hoy<=(a.fechaFin||a.fecha);
+        return a.fecha===hoy;
+      });
+      if(tieneHoy&&op.presente) op.presente=false;
+    });
+  });
+  guardar();
+}
+
+setTimeout(comprobarRevisionesMedicas, 1000);
+setTimeout(comprobarAgenda, 1500);
+setInterval(comprobarRevisionesMedicas, 60*60*1000);
+setInterval(comprobarAgenda, 60*60*1000);
 
 
 function actualizarSelectsGrupo(){
