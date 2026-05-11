@@ -884,28 +884,29 @@ const BLOQUES = [{label:'Bloque 1'},{label:'Bloque 2'},{label:'Bloque 3'},{label
 ═══════════════════════════════════════════ */
 const LS_KEY = 'rotaciones_ml2_multigrupo_v11';
 
+let _guardarTimeout = null;
 function guardar(){
-  // Sincronizar turno activo en _turnosOp antes de guardar
-  GRUPO_IDS.forEach(gid=>{
-    const g = GRUPOS_DATA[gid];
-    if(g._turnosOp && tramoConfig.turno){
-      g._turnosOp[tramoConfig.turno] = JSON.parse(JSON.stringify(g.operarios));
-      if(g._turnosCargas) g._turnosCargas[tramoConfig.turno] = JSON.parse(JSON.stringify(g.cargas));
-      if(g._turnosPermisos) g._turnosPermisos[tramoConfig.turno] = JSON.parse(JSON.stringify(g.permisos));
-      if(g._turnosTablon) g._turnosTablon[tramoConfig.turno] = JSON.parse(JSON.stringify(g.tablon||[[],[],[],[]]));
-    }
-  });
-  const estado = JSON.stringify({
-    GRUPOS_DATA,
-    gruposEnSorteo: [...gruposEnSorteo],
-    grupoActivo,
-    ts: Date.now()
-  });
-  try { localStorage.setItem(LS_KEY, estado); } catch(e){}
-  try { sessionStorage.setItem(LS_KEY, estado); } catch(e){}
-  window._estadoGuardado = estado;
-  // Firebase — guardar inmediatamente
-  if(window._fbGuardar) window._fbGuardar(estado);
+  // localStorage inmediato
+  try {
+    GRUPO_IDS.forEach(gid=>{
+      const g = GRUPOS_DATA[gid];
+      if(g._turnosOp && tramoConfig.turno){
+        g._turnosOp[tramoConfig.turno] = JSON.parse(JSON.stringify(g.operarios));
+        if(g._turnosCargas) g._turnosCargas[tramoConfig.turno] = JSON.parse(JSON.stringify(g.cargas));
+        if(g._turnosPermisos) g._turnosPermisos[tramoConfig.turno] = JSON.parse(JSON.stringify(g.permisos));
+        if(g._turnosTablon) g._turnosTablon[tramoConfig.turno] = JSON.parse(JSON.stringify(g.tablon||[[],[],[],[]]));
+      }
+    });
+    const estado = JSON.stringify({ GRUPOS_DATA, gruposEnSorteo:[...gruposEnSorteo], grupoActivo, ts:Date.now() });
+    localStorage.setItem(LS_KEY, estado);
+    sessionStorage.setItem(LS_KEY, estado);
+    window._estadoGuardado = estado;
+    // Firebase con debounce — máximo 1 escritura cada 3 segundos
+    clearTimeout(_guardarTimeout);
+    _guardarTimeout = setTimeout(()=>{
+      if(window._fbGuardar) window._fbGuardar(window._estadoGuardado);
+    }, 3000);
+  } catch(e){ console.warn('guardar:', e); }
 }
 
 function cargarEstado(){
