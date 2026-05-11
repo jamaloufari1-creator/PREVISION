@@ -443,9 +443,9 @@ body{font-family:IBM Plex Sans,sans-serif;background:var(--bg);color:var(--text)
         <div class="top-title" id="app-title" ondblclick="editarTitulo()" title="Doble clic para editar" style="cursor:pointer;">Rotaciones · ML2</div>
         <div style="display:flex;align-items:center;gap:8px;">
           <div class="top-sub" id="fecha-label">—</div>
-    <button onclick="refrescarApp()"
-      style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--s3);color:var(--muted2);cursor:pointer;display:flex;align-items:center;gap:5px;font-family:IBM Plex Mono,monospace;">
-      <span>🔄</span><span>Refrescar mensajes</span>
+    <button id="btn-refrescar" onclick="refrescarApp()"
+      style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--s3);color:var(--muted2);cursor:pointer;display:flex;align-items:center;gap:5px;font-family:IBM Plex Mono,monospace;transition:all .3s;">
+      <span id="btn-refrescar-ico">🔄</span><span>Refrescar</span>
     </button>
     <div class="top-sub" id="hora-label" style="color:var(--blue);font-family:IBM Plex Mono,monospace;"></div>
           <div id="sesion-badge" style="display:none;font-family:Oswald,sans-serif;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;letter-spacing:.06em;"></div>
@@ -3517,7 +3517,7 @@ function comprobarRevisionesMedicas(){
 }
 
 // Comprobar al cargar y cada hora
-setTimeout(comprobarRevisionesMedicas, 3000);
+setTimeout(comprobarRevisionesMedicas, 1000);
 setInterval(comprobarRevisionesMedicas, 60*60*1000);
 
 
@@ -3690,7 +3690,7 @@ function comprobarAgenda(){
 }
 
 // Comprobar al cargar y cada hora
-setTimeout(comprobarAgenda, 4000);
+setTimeout(comprobarAgenda, 1500);
 setInterval(comprobarAgenda, 60*60*1000);
 
 
@@ -4750,6 +4750,8 @@ function refrescarApp(){
   iniciarChatListener();
   setTimeout(cargarMensajes, 300);
   iniciarPresencia();
+  comprobarRevisionesMedicas();
+  comprobarAgenda();
   mostrarToast('🔄 Conexión refrescada');
 }
 
