@@ -4800,8 +4800,12 @@ function actualizarHora(){
   if(window._fbCargar){
     window._fbCargar().then(d=>{
       if(d && d.datos){
+        // Firebase siempre gana — sobreescribir localStorage con datos de Firebase
         try{ localStorage.setItem(LS_KEY, d.datos); }catch(e){}
         cargarEstado();
+      } else {
+        // No hay datos en Firebase — guardar los del HTML
+        guardar();
       }
       iniciarUI();
       if(window._fbEscuchar){
