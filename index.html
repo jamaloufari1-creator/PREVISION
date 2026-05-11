@@ -3086,6 +3086,12 @@ function confirmarEnvioMensaje(){
   // Guardar en Firebase
   try{
     firebase.firestore().collection('mensajes').doc(msgId).set(msgData);
+    // Notificación push al destinatario
+    const destGids = destino==='todos' ? GRUPO_IDS.filter(g=>g!==gid) :
+                     destino==='supervisor' ? ['supervisor'] : [destino];
+    const pushTitulo = grupoLabel + ' → ' + (destino==='todos'?'TODOS':destino==='supervisor'?'SUPERVISOR':('G'+(appConfig.grupos[destino]||destino)));
+    const pushCuerpo = (tipo==='paro'?'🔴 PARO: ':tipo==='ayuda'?'🙋 Ayuda: ':tipo==='bocata'?'🍕 ':'')+texto;
+    destGids.forEach(g=>enviarNotificacionPush(g, pushTitulo, pushCuerpo));
   }catch(e){}
 
   // Mostrar localmente con ✓
@@ -3686,6 +3692,72 @@ function comprobarAgenda(){
 // Comprobar al cargar y cada hora
 setTimeout(comprobarAgenda, 4000);
 setInterval(comprobarAgenda, 60*60*1000);
+
+
+// ══ NOTIFICACIONES PUSH ══
+const VAPID_KEY = 'BNqDYc8T3g64E4fPFAukk6258umfLIUvVlFQBuhLandTkI4ISRpRYkFJeo120dZlmkBv6UvbCxz7r7zKVnr970Q';
+
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for(let i=0; i<rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+async function activarNotificaciones(){
+  try{
+    if(!('Notification' in window) || !('serviceWorker' in navigator)) return;
+    const permiso = await Notification.requestPermission();
+    if(permiso !== 'granted'){ console.log('Notificaciones denegadas'); return; }
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub){
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_KEY)
+      });
+    }
+    // Guardar suscripción en Firebase asociada al grupo
+    const gid = window._modoUsuario || grupoActivo;
+    if(gid && gid !== 'admin'){
+      try{
+        firebase.firestore().collection('push_subs').doc(gid).set({
+          gid, sub: JSON.stringify(sub), ts: Date.now()
+        }, {merge: true});
+        console.log('Push activado para', gid);
+      }catch(e){}
+    }
+  }catch(e){ console.warn('Push error:', e); }
+}
+
+async function enviarNotificacionPush(destGid, titulo, cuerpo){
+  // Obtener suscripción del destinatario
+  try{
+    const doc = await firebase.firestore().collection('push_subs').doc(destGid).get();
+    if(!doc.exists) return;
+    const subStr = doc.data().sub;
+    // Llamar a Firebase Cloud Function o endpoint de notificación
+    // Como no tenemos servidor, usamos FCM directamente desde el cliente (legacy API)
+    await fetch('https://fcm.googleapis.com/fcm/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'key=ziRcjoWlsGJipQHTV8_iM14Nf8z6x8CPC_yoHwoomDc'
+      },
+      body: JSON.stringify({
+        notification: {
+          title: titulo,
+          body: cuerpo,
+          icon: 'icon-192.png'
+        },
+        to: JSON.parse(subStr).keys?.auth ? undefined : JSON.parse(subStr).endpoint,
+        web_push_subscription: JSON.parse(subStr)
+      })
+    });
+  }catch(e){ console.warn('enviarPush error:', e); }
+}
 
 
 function actualizarSelectsGrupo(){
