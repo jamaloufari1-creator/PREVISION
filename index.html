@@ -2497,8 +2497,15 @@ function renderTramo(){
 
     // Campo de mensaje del grupo
     const msgDiv=document.createElement('div');
-    msgDiv.style.cssText='padding:5px 10px;background:var(--s2);border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center;';
-    msgDiv.innerHTML=`
+    msgDiv.style.cssText='padding:5px 10px;background:var(--s2);border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:4px;';
+    const msgLabel=document.createElement('div');
+    msgLabel.style.cssText='font-size:9px;color:var(--muted2);font-family:IBM Plex Mono,monospace;letter-spacing:.08em;';
+    msgLabel.textContent='💬 MENSAJES';
+    msgDiv.appendChild(msgLabel);
+    const msgRow=document.createElement('div');
+    msgRow.style.cssText='display:flex;gap:6px;align-items:center;';
+    msgDiv.appendChild(msgRow);
+    msgRow.innerHTML=`
       <input id="gmsg-${gid}" id="inp-placeholder-${gid}" placeholder="${window._enLinea&&window._enLinea[gid]?'● en línea':''}"
         style="flex:1;background:transparent;border:none;border-bottom:1px solid var(--border2);padding:2px 4px;font-size:11px;color:var(--text);outline:none;min-width:80px;"
         onkeydown="if(event.key==='Enter')enviarMensajeGrupo('${gid}',this)"
