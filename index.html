@@ -1922,7 +1922,14 @@ function exportarPDFTablon(){
 
   html+=`<div class="footer">Generado el ${fechaStr} · </div>`;
   html+=`<scr`+`ipt>window.onload=function(){window.print();}</scr`+`ipt>`;
-  html+=`</body></html>`;
+  html+=`<div id="keep-awake" style="position:fixed;width:1px;height:1px;opacity:0.01;pointer-events:none;"></div>
+<video id="keep-awake-video" muted loop playsinline style="position:fixed;width:1px;height:1px;opacity:0.01;pointer-events:none;"
+  src="data:video/mp4;base64,AAAAIGZ0eXBtcDQyAAAAAG1wNDJtcDQxaXNvbQAAAAhmcmVlAAAA"></video>
+<style>
+@keyframes keepawake{0%{opacity:0.01;}100%{opacity:0.02;}}
+#keep-awake{animation:keepawake 1s linear infinite alternate;}
+</style>
+</body></html>`;
 
 
 
@@ -1996,7 +2003,14 @@ function exportarPDF(){
   });
 
   html+=`<div class="footer">Generado el ${fechaStr} · </div>`+`<scr`+`ipt>window.onload=function(){window.print();}</scr`+`ipt>`;
-  html+=`</body></html>`;
+  html+=`<div id="keep-awake" style="position:fixed;width:1px;height:1px;opacity:0.01;pointer-events:none;"></div>
+<video id="keep-awake-video" muted loop playsinline style="position:fixed;width:1px;height:1px;opacity:0.01;pointer-events:none;"
+  src="data:video/mp4;base64,AAAAIGZ0eXBtcDQyAAAAAG1wNDJtcDQxaXNvbQAAAAhmcmVlAAAA"></video>
+<style>
+@keyframes keepawake{0%{opacity:0.01;}100%{opacity:0.02;}}
+#keep-awake{animation:keepawake 1s linear infinite alternate;}
+</style>
+</body></html>`;
 
   const blob=new Blob([html],{type:'text/html'});
   const url=URL.createObjectURL(blob);
@@ -4797,9 +4811,21 @@ async function activarWakeLock(){
 // Reactivar cuando la página vuelve a ser visible
 document.addEventListener('visibilitychange', ()=>{
   if(document.visibilityState === 'visible') activarWakeLock();
+// Video silenciado en bucle para evitar suspensión (como YouTube)
+const _kav = document.getElementById('keep-awake-video');
+if(_kav) _kav.play().catch(()=>{});
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible' && _kav) _kav.play().catch(()=>{});
+});
 });
 
 activarWakeLock();
+// Video silenciado en bucle para evitar suspensión (como YouTube)
+const _kav = document.getElementById('keep-awake-video');
+if(_kav) _kav.play().catch(()=>{});
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible' && _kav) _kav.play().catch(()=>{});
+});
 
 function actualizarHora(){
     const n=new Date();
@@ -4942,5 +4968,12 @@ if('serviceWorker' in navigator){
 </script>
 <script>
 </script>
+<div id="keep-awake" style="position:fixed;width:1px;height:1px;opacity:0.01;pointer-events:none;"></div>
+<video id="keep-awake-video" muted loop playsinline style="position:fixed;width:1px;height:1px;opacity:0.01;pointer-events:none;"
+  src="data:video/mp4;base64,AAAAIGZ0eXBtcDQyAAAAAG1wNDJtcDQxaXNvbQAAAAhmcmVlAAAA"></video>
+<style>
+@keyframes keepawake{0%{opacity:0.01;}100%{opacity:0.02;}}
+#keep-awake{animation:keepawake 1s linear infinite alternate;}
+</style>
 </body>
 </html>
