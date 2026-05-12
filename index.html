@@ -909,11 +909,7 @@ function guardar(){
     localStorage.setItem(LS_KEY, estado);
     sessionStorage.setItem(LS_KEY, estado);
     window._estadoGuardado = estado;
-    // Firebase con debounce — máximo 1 escritura cada 3 segundos
-    clearTimeout(_guardarTimeout);
-    _guardarTimeout = setTimeout(()=>{
-      if(window._fbGuardar) window._fbGuardar(window._estadoGuardado);
-    }, 3000);
+      // Firebase solo con botón guardar manual — no automático
   } catch(e){ console.warn('guardar:', e); }
 }
 
@@ -3060,14 +3056,8 @@ function iniciarPresencia(){
       if(dot){dot.style.background='var(--green)';dot.title='En línea';}
     });
   };
-  hb(); setInterval(hb,15000);
-  // Limpiar entradas viejas
-  try{
-    firebase.firestore().collection('presencia').get().then(snap=>{
-      const ahora=Date.now();
-      snap.docs.forEach(d=>{ if(ahora-(d.data().ts||0)>60000) d.ref.delete(); });
-    });
-  }catch(e){}
+  hb(); setInterval(hb,60000);
+  // Limpieza de presencia desactivada para reducir lecturas
   // Listener presencia
   try{
     firebase.firestore().collection('presencia').onSnapshot(snap=>{
@@ -3078,6 +3068,10 @@ function iniciarPresencia(){
   }catch(e){}
   // Limpiar al cerrar
   window.addEventListener('beforeunload',()=>{
+    // Guardar estado final en Firebase al cerrar
+    if(window._fbGuardar && window._estadoGuardado){
+      try{ window._fbGuardar(window._estadoGuardado); }catch(e){}
+    }
     try{firebase.firestore().collection('presencia').doc(gid).delete();}catch(e){}
   });
 }
