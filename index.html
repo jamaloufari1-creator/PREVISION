@@ -4707,6 +4707,29 @@ setTimeout(()=>{
 },1000);
 
 
+function refrescarMensajes(){
+  _chatListenerActivo = false;
+  iniciarChatListener();
+  setTimeout(cargarMensajes, 300);
+  iniciarPresencia();
+  comprobarRevisionesMedicas();
+  comprobarAgenda();
+  mostrarToast('🔄 Mensajes actualizados');
+}
+
+function verHoraGuardado(){
+  try{
+    firebase.firestore().collection('rotaciones').doc('ml2-ramal2').get().then(d=>{
+      if(d.exists){
+        const hora = new Date(d.data().ts).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});
+        const el = document.getElementById('hora-guardado');
+        if(el) el.textContent = hora;
+        mostrarToast('☁️ Último guardado: '+hora);
+      }
+    });
+  }catch(e){}
+}
+
 function actualizarHora(){
     const n=new Date();
     const h=String(n.getHours()).padStart(2,'0');
