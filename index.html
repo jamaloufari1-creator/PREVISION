@@ -3536,6 +3536,9 @@ function guardarAgenda(){
   op.ausencias.push({motivo, fecha, fechaFin, horaIni, horaFin, nota, ts:Date.now()});
   op.ausencias.sort((a,b)=>a.fecha.localeCompare(b.fecha));
   guardar();
+  // Forzar escritura inmediata en Firebase
+  clearTimeout(_guardarTimeout);
+  if(window._fbGuardar && window._estadoGuardado) window._fbGuardar(window._estadoGuardado);
   renderAgendaLista(op);
   renderOpList();
   mostrarToast('📅 Ausencia registrada');
@@ -4812,7 +4815,9 @@ function actualizarHora(){
       if(window._fbEscuchar){
         let miTs = d?.ts||0;
         window._fbEscuchar(d2=>{
-          if(d2&&d2.ts&&d2.ts>miTs+500&&d2.datos){
+          // Solo aplicar si Firebase tiene datos más nuevos que nuestro último guardado local
+          const tsLocal = window._estadoGuardado ? (JSON.parse(window._estadoGuardado).ts||0) : 0;
+          if(d2&&d2.ts&&d2.ts>miTs+500&&d2.datos&&d2.ts>tsLocal){
             miTs=d2.ts;
             const grupoLocal = grupoActivo; // guardar grupo actual del usuario
             const vistaLocal = document.querySelector('.vista.activa')?.id; // guardar vista
