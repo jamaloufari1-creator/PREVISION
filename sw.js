@@ -1,4 +1,4 @@
-const CACHE = 'ml2-v2';
+const CACHE = 'ml2-v3';
 const CACHE_ASSETS = ['icon-192.png', 'icon-512.png', 'manifest.json'];
 
 self.addEventListener('install', e=>{
