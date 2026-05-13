@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="ML2">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
 <title>Rotaciones · ML2</title>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
@@ -308,13 +308,43 @@ body{font-family:IBM Plex Sans,sans-serif;background:var(--bg);color:var(--text)
   .tramo-grupo-head .btn-alerta { font-size: 12px !important; padding: 6px 10px !important; min-height: 34px; }
 }
 
+
+/* ── PERSIANA DE PRIVACIDAD ── */
+.persiana-overlay{
+  position:absolute;inset:0;z-index:10;
+  border-radius:0 0 10px 10px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+  background:linear-gradient(135deg,#0d1117 0%,#111827 50%,#0d1117 100%);
+  border:1px solid var(--border2);
+  transition:opacity .3s;
+  min-height:120px;
+}
+@media(max-width:600px){
+  .persiana-overlay{ position:relative;inset:auto;border-radius:0;min-height:80px; }
+  .persiana-numero{ font-size:48px !important; }
+}
+.persiana-overlay:hover .persiana-abrir-hint{opacity:1;}
+.persiana-svg{position:absolute;inset:0;width:100%;height:100%;opacity:.07;}
+.persiana-content{display:flex;flex-direction:column;align-items:center;gap:10px;z-index:1;}
+.persiana-numero{font-family:Oswald,sans-serif;font-size:72px;font-weight:700;letter-spacing:.05em;
+  background:linear-gradient(135deg,#1a3a6b,#2a7fff,#4d9fff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  line-height:1;text-shadow:none;filter:drop-shadow(0 0 30px rgba(77,159,255,.4));}
+.persiana-label{font-family:Oswald,sans-serif;font-size:13px;font-weight:600;letter-spacing:.15em;
+  color:var(--muted2);text-transform:uppercase;}
+.persiana-lock{font-size:22px;opacity:.5;}
+.persiana-abrir-hint{font-family:IBM Plex Mono,monospace;font-size:10px;color:var(--blue);
+  opacity:0;transition:opacity .2s;letter-spacing:.08em;margin-top:4px;}
+.tramo-grupo{position:relative;}
+
 /* TRAMO 3/4 */
 .tramo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:14px;}
 .split-mode .vista-tramo-inner{display:grid;grid-template-columns:1fr 1fr;gap:0;}
 .split-pane{flex:1;overflow-y:auto;border-right:2px solid var(--border2);}
 .split-pane:last-child{border-right:none;}
 .split-label{font-family:Oswald,sans-serif;font-size:11px;font-weight:700;letter-spacing:.08em;padding:6px 16px;background:var(--s3);border-bottom:1px solid var(--border);color:var(--muted2);text-transform:uppercase;}
-.tramo-grupo{background:var(--s2);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.tramo-grupo{background:var(--s2);border:1px solid var(--border);border-radius:10px;overflow:hidden;isolation:isolate;}
 .tramo-grupo-head{background:var(--s3);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;}
 .tramo-grupo-title{font-family:Oswald,sans-serif;font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;}
 .tramo-stats{font-family:IBM Plex Mono,monospace;font-size:10px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
@@ -349,14 +379,19 @@ body{font-family:IBM Plex Sans,sans-serif;background:var(--bg);color:var(--text)
 .prev-va{background:rgba(229,83,75,.15);color:var(--red);border:1px solid rgba(229,83,75,.3);}
 
 /* SLIDER AVISOS */
-.avisos-bar{background:var(--s2);border-bottom:1px solid var(--border);padding:0 16px;height:32px;display:flex;align-items:center;gap:0;overflow:hidden;position:relative;flex-shrink:0;}
-.avisos-track{display:flex;align-items:center;gap:32px;animation:slide-avisos 20s linear infinite;white-space:nowrap;}
-.avisos-track:hover{animation-play-state:paused;}
-@keyframes slide-avisos{0%{transform:translateX(100vw);}100%{transform:translateX(-100%);}}
-.aviso-item{display:flex;align-items:center;gap:6px;font-family:IBM Plex Mono,monospace;font-size:11px;}.aviso-item.chat-msg{color:var(--green) !important;}
+.avisos-bar{background:var(--s2);border-bottom:1px solid var(--border);padding:0 16px;height:32px;display:flex;align-items:center;gap:0;overflow:hidden;position:relative;flex-shrink:0;cursor:pointer;user-select:none;}
+.avisos-track{display:flex;align-items:center;gap:48px;white-space:nowrap;animation:slide-avisos 28s linear infinite;}
+.avisos-track.pausado{animation-play-state:paused;}
+@keyframes slide-avisos{0%{transform:translateX(100vw);}100%{transform:translateX(-2000px);}}
+.aviso-item{display:flex;align-items:center;gap:6px;font-family:IBM Plex Mono,monospace;font-size:11px;}
+.aviso-item.chat-msg{color:var(--green) !important;border-left:2px solid var(--green);padding-left:8px;}
 .aviso-item.urgente{color:var(--red);}
 .aviso-item.pronto{color:var(--orange);}
 .aviso-item.normal{color:var(--muted2);}
+.aviso-item.agenda-item{color:var(--orange);}
+.avisos-pausa-hint{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:9px;color:var(--muted);font-family:IBM Plex Mono,monospace;opacity:0;transition:opacity .2s;pointer-events:none;}
+.avisos-bar:hover .avisos-pausa-hint{opacity:1;}
+.aviso-sep{color:var(--border2);padding:0 4px;opacity:.5;}
 .aviso-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
 .aviso-dot.urgente{background:var(--red);}
 .aviso-dot.pronto{background:var(--orange);}
@@ -408,11 +443,15 @@ body{font-family:IBM Plex Sans,sans-serif;background:var(--bg);color:var(--text)
       };
 
       // Escuchar cambios de estado en tiempo real
+      // Canal de estado — suscribirse UNA sola vez, guardar callbacks
+      let _estadoCb = null;
+      _sb.channel('estado-ml2').on('postgres_changes',
+        { event:'UPDATE', schema:'public', table:'estado', filter:'id=eq.ml2-ramal2' },
+        payload => { if(_estadoCb) _estadoCb(payload.new); }
+      ).subscribe();
+
       window._fbEscuchar = function(cb){
-        _sb.channel('estado').on('postgres_changes',
-          { event:'UPDATE', schema:'public', table:'estado', filter:'id=eq.ml2-ramal2' },
-          payload => cb(payload.new)
-        ).subscribe();
+        _estadoCb = cb; // solo registrar el callback, no crear nuevo canal
       };
 
       // API de mensajes
@@ -525,18 +564,7 @@ console.log('Supabase conectado correctamente');
         <div class="top-title" id="app-title" ondblclick="editarTitulo()" title="Doble clic para editar" style="cursor:pointer;">Rotaciones · ML2</div>
         <div style="display:flex;align-items:center;gap:8px;">
           <div class="top-sub" id="fecha-label">—</div>
-    <button id="btn-refrescar" onclick="refrescarApp()"
-      style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--s3);color:var(--muted2);cursor:pointer;display:flex;align-items:center;gap:5px;font-family:IBM Plex Mono,monospace;transition:all .3s;">
-      <span id="btn-refrescar-ico">💾</span><span>Guardar</span>
-    </button>
-    <button onclick="verHoraGuardado()" title="Ver última hora guardada en Firebase"
-      style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--s3);color:var(--muted2);cursor:pointer;font-family:IBM Plex Mono,monospace;">
-      🕐 <span id="hora-guardado">--:--</span>
-    </button>
-    <button onclick="refrescarMensajes()"
-      style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--s3);color:var(--muted2);cursor:pointer;font-family:IBM Plex Mono,monospace;">
-      🔄 Refrescar
-    </button>
+    <div class="top-sub" id="hora-guardado" style="font-family:IBM Plex Mono,monospace;font-size:10px;color:var(--muted2);">🕐 --:--</div>
     <div class="top-sub" id="hora-label" style="color:var(--blue);font-family:IBM Plex Mono,monospace;"></div>
           <div id="sesion-badge" style="display:none;font-family:Oswald,sans-serif;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;letter-spacing:.06em;"></div>
           <select id="turno-sel" onchange="guardarTurno(this.value)"
@@ -561,6 +589,7 @@ console.log('Supabase conectado correctamente');
       <div class="chip boc" id="chip-boc">🥖 —</div>
       <button class="btn btn-sm" id="btn-vista-tramo" style="color:var(--purple);border-color:var(--purple);font-weight:700;background:var(--purple-dim);" onclick="cambiarVista('tramo')">👥 Equipos</button>
       <button class="btn btn-sm" id="btn-vista-sorteo" style="color:var(--muted2);border-color:var(--border);" onclick="cambiarVista('sorteo')">🎱 Sorteo</button>
+
       <button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue);font-weight:700;" onclick="abrirInstrucciones()">? Ayuda</button>
       <button class="btn btn-sm" style="color:var(--green);border-color:var(--green);font-weight:700;" onclick="guardar();mostrarToast('✅ Guardado')">💾 Guardar</button>
       <button class="btn btn-sm" style="color:var(--muted);border-color:var(--border);" onclick="resetearDatos()">↺ Reset</button>
@@ -634,10 +663,11 @@ console.log('Supabase conectado correctamente');
 
   <!-- VISTA TRAMO 3/4 EMBEBIDA -->
   <div class="vista activa" id="vista-tramo" style="flex-direction:column;padding:0;">
-    <div class="avisos-bar" id="avisos-bar" style="padding-right:8px;">
+    <div class="avisos-bar" id="avisos-bar" style="padding-right:8px;" onclick="togglePausaAvisos()">
       <div class="avisos-track" id="avisos-track">
         <span style="font-size:10px;color:var(--muted);font-family:IBM Plex Mono,monospace;">⏰ Sin avisos programados</span>
       </div>
+      <span class="avisos-pausa-hint" id="avisos-pausa-hint">⏸ toca para pausar</span>
     </div>
 
 
@@ -928,8 +958,8 @@ console.log('Supabase conectado correctamente');
     </div>
     <div id="agenda-lista" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
     <div style="border-top:1px solid var(--border);padding-top:12px;">
-      <div style="font-size:11px;color:var(--muted2);margin-bottom:8px;font-weight:600;">AÑADIR AUSENCIA</div>
-      <select id="agenda-motivo" onchange="toggleAgendaCampos(this.value)" style="width:100%;background:var(--s3);border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--text);margin-bottom:6px;outline:none;">
+      <div style="font-size:11px;color:#f0a500;margin-bottom:8px;font-weight:600;">AÑADIR AUSENCIA</div>
+      <select id="agenda-motivo" onchange="toggleAgendaCampos(this.value)" style="width:100%;background:var(--s3);border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:11px;color:#f0a500;margin-bottom:6px;outline:none;color-scheme:dark;">
         <option value="permiso">📋 Permiso</option>
         <option value="formacion">📚 Formación</option>
         <option value="retraso">⏰ Retraso</option>
@@ -937,14 +967,14 @@ console.log('Supabase conectado correctamente');
         <option value="jornada">🏭 Jornada industrial</option>
         <option value="otro">💬 Otro</option>
       </select>
-      <input id="agenda-fecha" type="date" style="width:100%;background:var(--s3);border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--text);margin-bottom:6px;outline:none;box-sizing:border-box;">
+      <input id="agenda-fecha" type="date" style="width:100%;background:var(--s3);border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:11px;color:#f0a500;margin-bottom:6px;outline:none;box-sizing:border-box;color-scheme:dark;">
       <div id="agenda-horas-div" style="display:flex;gap:6px;margin-bottom:6px;">
-        <div style="flex:1;"><div style="font-size:9px;color:var(--muted2);margin-bottom:3px;">Hora inicio (opcional)</div><input id="agenda-hora-ini" type="time" style="width:100%;background:var(--s3);border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--text);outline:none;box-sizing:border-box;"></div>
-        <div style="flex:1;"><div style="font-size:9px;color:var(--muted2);margin-bottom:3px;">Hora fin (opcional)</div><input id="agenda-hora-fin" type="time" style="width:100%;background:var(--s3);border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--text);outline:none;box-sizing:border-box;"></div>
+        <div style="flex:1;"><div style="font-size:9px;color:#f0a500;margin-bottom:3px;">Hora inicio (opcional)</div><input id="agenda-hora-ini" type="time" style="width:100%;background:var(--s3);border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:11px;color:#f0a500;outline:none;box-sizing:border-box;color-scheme:dark;"></div>
+        <div style="flex:1;"><div style="font-size:9px;color:#f0a500;margin-bottom:3px;">Hora fin (opcional)</div><input id="agenda-hora-fin" type="time" style="width:100%;background:var(--s3);border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:11px;color:#f0a500;outline:none;box-sizing:border-box;color-scheme:dark;"></div>
       </div>
       <div id="agenda-hasta-div" style="display:none;margin-bottom:6px;">
-        <div style="font-size:9px;color:var(--muted2);margin-bottom:3px;">Fecha fin (jornada industrial)</div>
-        <input id="agenda-fecha-fin" type="date" style="width:100%;background:var(--s3);border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--text);outline:none;box-sizing:border-box;">
+        <div style="font-size:9px;color:#f0a500;margin-bottom:3px;">Fecha fin (jornada industrial)</div>
+        <input id="agenda-fecha-fin" type="date" style="width:100%;background:var(--s3);border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:11px;color:#f0a500;outline:none;box-sizing:border-box;color-scheme:dark;">
       </div>
       <input id="agenda-nota" type="text" placeholder="Nota adicional…" style="width:100%;background:var(--s3);border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--text);margin-bottom:8px;outline:none;box-sizing:border-box;">
       <button onclick="guardarAgenda()" style="width:100%;padding:7px;border-radius:7px;border:none;background:var(--blue);color:#fff;font-size:12px;font-weight:700;cursor:pointer;">+ Añadir</button>
@@ -2103,12 +2133,16 @@ function exportarPDF(){
 
   const blob=new Blob([html],{type:'text/html'});
   const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download='Sorteo_ML2_'+new Date().toISOString().slice(0,10)+'.html';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  const win=window.open(url,'_blank');
+  if(!win){
+    // Fallback si popup bloqueado: descargar
+    const a=document.createElement('a');
+    a.href=url; a.download='Sorteo_ML2_'+new Date().toISOString().slice(0,10)+'.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
 }
 
 /* ═══════════════════════════════════════════
@@ -2276,7 +2310,7 @@ if(window._fbGuardar){
   (()=>{
       const elHora = document.getElementById('hora-guardado');
       if(elHora){
-        elHora.textContent = 'Guardando...';
+        elHora.textContent = '🕐 Guardando...';
       }
       return window._fbGuardar(estado);
     })()
@@ -2290,7 +2324,7 @@ if(window._fbGuardar){
 
       const elHora = document.getElementById('hora-guardado');
       if(elHora){
-        elHora.textContent = 'Último guardado: ' + hora;
+        elHora.textContent = '🕐 ' + hora;
       }
 
       window._ultimaHoraGuardado = hora;
@@ -2304,7 +2338,7 @@ if(window._fbGuardar){
 
       const elHora = document.getElementById('hora-guardado');
       if(elHora){
-        elHora.textContent = 'Error al guardar';
+        elHora.textContent = '🕐 Error';
       }
     });
 }
@@ -2614,6 +2648,7 @@ function renderTramo(){
         <span id="presencia-dot-${gid}" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--border2);margin-left:6px;vertical-align:middle;" title="Desconectado"></span>
         ${GRUPO_IDS.length>1?`<button onclick="quitarGrupo('${gid}')" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid rgba(229,83,75,.3);background:transparent;color:var(--red);cursor:pointer;">✕</button>`:''}
         ${puedeEditarHead?`<button onclick="activarGrupoYEditar('${gid}')" style="font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--muted2);cursor:pointer;">✏</button>`:''}
+        <button onclick="togglePersiana('${gid}')" title="Cerrar persiana" style="font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--muted2);cursor:pointer;">🔒</button>
       </div>
       <div class="tramo-stats">
         <span>${presOps.length} pers.</span>
@@ -2654,13 +2689,19 @@ function renderTramo(){
     div.appendChild(msgDiv);
 
 
+    // Contenedor interior para las filas (sobre este va la persiana)
+    const innerWrap=document.createElement('div');
+    innerWrap.id='inner-wrap-'+gid;
+    innerWrap.style.cssText='position:relative;';
+    div.appendChild(innerWrap);
+
     // Cabecera tabla — nuevo layout: CARGA | OPERARIO | [espacio] | NIS/ETT·extras
     const thDiv=document.createElement('div');
     thDiv.style.cssText='display:grid;grid-template-columns:160px 1fr auto;background:var(--s3);border-bottom:2px solid var(--border2);';
     thDiv.innerHTML='<div style="padding:5px 10px;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Carga</div>'
       +'<div style="padding:5px 10px;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;">Operario</div>'
       +'<div style="padding:5px 10px;font-family:Oswald,sans-serif;font-size:10px;font-weight:600;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;white-space:nowrap;">NIS \xb7 Extras</div>';
-    div.appendChild(thDiv);
+    innerWrap.appendChild(thDiv);
 
     function buildOpRow(op, cargaNombre){
       const row=document.createElement('div');
@@ -2988,7 +3029,7 @@ function renderTramo(){
         row.appendChild(buildOpCell(op,gid));
         row.appendChild(buildExtrasCell(op,gid));
       }
-      div.appendChild(row);
+      innerWrap.appendChild(row);
     });
 
     // Huecos libres (sin carga)
@@ -2999,7 +3040,7 @@ function renderTramo(){
     const scHead=document.createElement('div');
     scHead.style.cssText='background:var(--s3);border-top:1px solid var(--border);padding:4px 12px;display:flex;align-items:center;justify-content:space-between;';
     scHead.innerHTML='<span style="font-family:IBM Plex Mono,monospace;font-size:9px;color:var(--muted);letter-spacing:.08em;">SIN CARGA ASIGNADA</span>';
-    div.appendChild(scHead);
+    innerWrap.appendChild(scHead);
 
     huecos.forEach(op=>{
       const row=document.createElement('div');
@@ -3061,13 +3102,14 @@ function renderTramo(){
         row.appendChild(tdEmpty);
         row.appendChild(document.createElement('div'));
       }
-      div.appendChild(row);
+      innerWrap.appendChild(row);
     });
 
     // Botones añadir eliminados — usar panel central
 
 
     grid.appendChild(div);
+    renderPersiana(innerWrap, gid, label);
   });
   // Actualizar chip-boc con totales reales de todos los grupos
   const _bocS = GRUPO_IDS.reduce((s,g)=>s+GRUPOS_DATA[g].operarios.filter(o=>!o.esEtt&&o.bocadillo&&(o.presente===true||o.presente===1||o.presente===2)).length, 0);
@@ -3489,6 +3531,19 @@ function _quitarMsg(msgId){
   delete _msgsActivos[msgId];
 }
 
+// Limpiador periódico: elimina mensajes que lleven más de 10min en pantalla
+// (cubre casos donde el timeout no se disparó correctamente)
+setInterval(()=>{
+  const ahora=Date.now();
+  Object.keys(_msgsActivos).forEach(msgId=>{
+    // El id tiene formato: gid_timestamp
+    const ts=parseInt(msgId.split('_').pop());
+    if(!isNaN(ts) && ahora-ts > 10*60*1000){
+      _quitarMsg(msgId);
+    }
+  });
+}, 30*1000);
+
 // ── Listener Firebase ──
 function iniciarChatListener(){
   if(_chatListenerActivo) return;
@@ -3510,12 +3565,22 @@ function iniciarChatListener(){
           const nL=Object.keys(leido).length;
           const nR=Object.keys(recibido).length;
           const nD=msg.destino==='todos'?GRUPO_IDS.filter(g=>g!==msg.gid).length+1:1;
-          if(nL>=nD) tickEl.innerHTML='<span style="color:#3B82F6;">✓✓</span>';
-          else if(nR>=nD) tickEl.innerHTML='<span style="color:var(--muted2);">✓✓</span>';
-          else tickEl.innerHTML='<span style="color:var(--muted2);">✓</span>';
-          if(nL>=nD&&msg.gid===mi) setTimeout(()=>_quitarMsg(msg.id),2000);
-          // Guardar leido actual para actualizaciones
+          // Guardar leido actual para actualizaciones futuras
           if(_msgsActivos[msg.id]) _msgsActivos[msg.id]._leidoData = leido;
+          // ✓✓ azul solo para el remitente del mensaje
+          if(msg.gid===mi){
+            if(nL>=nD) tickEl.innerHTML='<span style="color:#3B82F6;">✓✓</span>';
+            else if(nR>=nD) tickEl.innerHTML='<span style="color:var(--muted2);">✓✓</span>';
+            else tickEl.innerHTML='<span style="color:var(--muted2);">✓</span>';
+            // Auto-quitar el mensaje del remitente cuando todos lo han leído
+            if(nL>=nD) setTimeout(()=>_quitarMsg(msg.id),2000);
+          }
+          // El receptor: si llega UPDATE de un mensaje propio pendiente, actualizar botón leer
+          if(msg.gid!==mi){
+            const dest=msg.destino||'todos';
+            const meAfecta=dest==='todos'||dest===mi||mi==='supervisor'||mi==='admin';
+            if(meAfecta) actualizarBtnLeerTodo();
+          }
         }
         return;
       }
@@ -3577,14 +3642,33 @@ function mostrarMsgEnAvisos(grupo,texto,tipo){
     chatDiv.style.cssText='display:inline-flex;gap:16px;align-items:center;white-space:nowrap;';
     track.appendChild(chatDiv);
   }
+  // Evitar duplicados: usar id único basado en grupo+texto
+  const uid='aviso-'+btoa(unescape(encodeURIComponent(grupo+texto))).replace(/[^a-z0-9]/gi,'').slice(0,24);
+  if(document.getElementById(uid)) return; // ya está en el slider
   const span=document.createElement('span');
-  span.className='aviso-item';
-  span.style.color=tipo==='agenda'?'var(--orange)':tipo==='revmed'?'var(--orange)':'var(--text)';
-  if(tipo==='agenda') span.style.animation='parpadeo 1.2s infinite';
+  span.id=uid;
+  // Estilo según tipo
+  if(tipo==='agenda'){
+    span.className='aviso-item agenda-item';
+    span.style.borderLeft='2px solid var(--orange)';
+    span.style.paddingLeft='8px';
+    // Solo parpadea si es el más urgente (primero del tipo agenda)
+    const yaHayAgenda = chatDiv.querySelector('.agenda-item');
+    if(!yaHayAgenda) span.style.animation='parpadeo 1.8s infinite';
+  } else if(tipo==='revmed'){
+    span.className='aviso-item';
+    span.style.color='var(--orange)';
+    span.style.borderLeft='2px solid var(--orange)';
+    span.style.paddingLeft='8px';
+  } else {
+    span.className='aviso-item';
+    span.style.color='var(--muted2)';
+  }
   const hora=new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});
-  span.innerHTML='<span style="font-weight:700;">'+grupo+'</span> '+texto+' <span style="color:var(--muted);font-size:9px;">'+hora+'</span>';
+  span.innerHTML='<span style="font-weight:700;font-size:10px;">'+grupo+'</span> '+texto+' <span style="color:var(--muted);font-size:9px;">'+hora+'</span>';
   chatDiv.appendChild(span);
-  setTimeout(()=>span.remove(),10*60*1000);
+  _reiniciarAnimacionAvisos();
+  setTimeout(()=>{ span.remove(); _reiniciarAnimacionAvisos(); },10*60*1000);
 }
 
 // ── Stubs legacy ──
@@ -3682,9 +3766,11 @@ function guardarAgenda(){
   op.ausencias.push({motivo, fecha, fechaFin, horaIni, horaFin, nota, ts:Date.now()});
   op.ausencias.sort((a,b)=>a.fecha.localeCompare(b.fecha));
   guardar();
-  // Forzar escritura inmediata en Firebase
+  // Forzar escritura inmediata en Supabase con el estado ya actualizado
   clearTimeout(_guardarTimeout);
-  if(window._fbGuardar && window._estadoGuardado) window._fbGuardar(window._estadoGuardado);
+  setTimeout(()=>{
+    if(window._fbGuardar && window._estadoGuardado) window._fbGuardar(window._estadoGuardado);
+  }, 50);
   renderAgendaLista(op);
   renderOpList();
   mostrarToast('📅 Ausencia registrada');
@@ -3699,6 +3785,14 @@ function eliminarAusencia(idx){
   if(!op || !op.ausencias) return;
   op.ausencias.splice(idx,1);
   guardar();
+  // Forzar escritura inmediata en Supabase
+  clearTimeout(_guardarTimeout);
+  setTimeout(()=>{ if(window._fbGuardar && window._estadoGuardado) window._fbGuardar(window._estadoGuardado); }, 50);
+  // Limpiar todos los avisos de agenda del ticker y regenerar
+  const track = document.getElementById('avisos-track');
+  if(track) track.querySelectorAll('.agenda-item').forEach(el=>el.remove());
+  comprobarAgenda();
+  actualizarAvisos();
   renderAgendaLista(op);
   renderOpList();
 }
@@ -3784,6 +3878,8 @@ setTimeout(comprobarRevisionesMedicas, 1000);
 setTimeout(comprobarAgenda, 1500);
 setInterval(comprobarRevisionesMedicas, 60*60*1000);
 setInterval(comprobarAgenda, 60*60*1000);
+// Repasar agenda y avisos de salida cada minuto
+setInterval(()=>{ comprobarAgenda(); comprobarRevisionesMedicas(); actualizarAvisos(); }, 60*1000);
 
 
 function actualizarSelectsGrupo(){
@@ -4539,7 +4635,7 @@ function renderTramoEnGrid(gridId){
         };
         row.appendChild(huecoSpan);
       }
-      div.appendChild(row);
+      innerWrap.appendChild(row);
     });
     grid.appendChild(div);
   });
@@ -4561,12 +4657,49 @@ function toggleBloqueOp(gid, opId, bloque){
   guardar();
 }
 
+let _avisosPausado = false;
+
+function togglePausaAvisos(){
+  _avisosPausado = !_avisosPausado;
+  const track = document.getElementById('avisos-track');
+  const hint = document.getElementById('avisos-pausa-hint');
+  if(!track) return;
+  if(_avisosPausado){
+    track.classList.add('pausado');
+    if(hint){ hint.textContent='▶ toca para continuar'; hint.style.opacity='1'; }
+  } else {
+    track.classList.remove('pausado');
+    if(hint){ hint.textContent='⏸ toca para pausar'; hint.style.opacity=''; }
+  }
+}
+
+function _reiniciarAnimacionAvisos(duracion){
+  const track = document.getElementById('avisos-track');
+  if(!track) return;
+  // No tocar style.animation — la animación viene del CSS
+  // Solo gestionar pausa
+  if(_avisosPausado) track.classList.add('pausado');
+  else track.classList.remove('pausado');
+}
+
 function actualizarAvisos(){
   const track = document.getElementById('avisos-track');
   if(!track) return;
   const ahora = new Date();
   const hAhora = ahora.getHours()*60 + ahora.getMinutes();
   const avisos = [];
+  // Limpiar avisos de salida expirados del chatDiv (si quedaron huérfanos)
+  track.querySelectorAll('.chat-avisos .aviso-item').forEach(el=>{
+    const txt = el.textContent||'';
+    // Si contiene "sale en" o "salida" y la hora ya pasó, eliminarlo
+    const match = txt.match(/salida\s+(\d{2}):(\d{2})/);
+    if(match){
+      const hSal = parseInt(match[1])*60+parseInt(match[2]);
+      let diff = hSal - hAhora;
+      if(diff < -60) diff += 1440;
+      if(diff < 0) el.remove();
+    }
+  });
 
   GRUPO_IDS.forEach(gid=>{
     GRUPOS_DATA[gid].operarios.forEach(op=>{
@@ -4574,33 +4707,123 @@ function actualizarAvisos(){
       const [hh,mm] = op.horaSalida.split(':').map(Number);
       if(isNaN(hh)||isNaN(mm)) return;
       const hSalida = hh*60+mm;
-      // Calcular minutos hasta la salida (considerar cruce medianoche)
       let diff = hSalida - hAhora;
-      if(diff < -60) diff += 1440; // cruce medianoche
-      const nombre = op.apodo||op.nombre;
+      if(diff < -60) diff += 1440;
+      const nombre = op.apodo||op.nombre.split(' ')[0];
       const gLabel = (window.appConfig?.grupos?.[gid])||gid.replace('g','G');
       if(diff >= 0 && diff <= 60){
         const min = Math.round(diff);
-        avisos.push({texto:`⚠ ${nombre} (${gLabel}) sale en ${min} min`, clase:'urgente'});
-      } else if(diff > 60){
-        avisos.push({texto:`${nombre} (${gLabel}) · salida ${op.horaSalida}`, clase:'urgente'});
+        avisos.push({texto:`⚠ ${nombre} (G${gLabel}) sale en ${min}min`, urgencia:2});
       }
     });
   });
 
   // Preservar mensajes de chat
-  const chatSpans = track.querySelector('.chat-avisos');
-  const chatHtml = chatSpans ? chatSpans.outerHTML : '';
+  const chatDiv = track.querySelector('.chat-avisos');
+  const chatEl = chatDiv ? chatDiv.cloneNode(true) : null;
 
-  if(!avisos.length){
-    track.innerHTML='<span style="font-size:10px;color:var(--muted);font-family:IBM Plex Mono,monospace;">⏰ Sin avisos programados</span>' + chatHtml;
-    track.style.animation = 'slide-avisos 20s linear infinite';
-    return;
+  // Construir nuevo contenido
+  const sinAvisos = avisos.length === 0;
+  let html = '';
+  if(sinAvisos){
+    html = '<span style="font-size:10px;color:var(--muted);font-family:IBM Plex Mono,monospace;">⏰ Sin avisos programados</span>';
+  } else {
+    // Ordenar por urgencia
+    avisos.sort((a,b)=>b.urgencia-a.urgencia);
+    html = avisos.map((a,i)=>{
+      const color = a.urgencia===2 ? 'var(--red)' : 'var(--orange)';
+      return `<span class="aviso-item" style="color:${color};">${a.texto}</span>`;
+    }).join('<span class="aviso-sep">·</span>');
   }
-  track.style.animation='slide-avisos 25s linear infinite';
-  track.innerHTML = avisos.map(a=>
-    `<span class="aviso-item urgente"><span class="aviso-dot urgente"></span>${a.texto}</span>`
-  ).join('<span style="color:var(--red);padding:0 8px;opacity:.4;">·</span>') + chatHtml;
+
+  track.innerHTML = html;
+  if(chatEl) track.appendChild(chatEl);
+
+  // Velocidad proporcional al contenido
+  const nItems = avisos.length + (chatEl ? chatEl.children.length : 0);
+  const dur = sinAvisos ? 20 : Math.max(18, Math.min(40, nItems * 6));
+  _reiniciarAnimacionAvisos(dur);
+}
+
+/* ── PERSIANA DE PRIVACIDAD ── */
+const _persianaEstado = {}; // gid → true=cerrada — se inicializa cerrado en renderPersiana
+
+function togglePersiana(gid){
+  if(gid){
+    // Toggle individual: si está cerrada → abrir; si está abierta → cerrar
+    _persianaEstado[gid] = !_persianaEstado[gid];
+    const overlay = document.getElementById('persiana-'+gid);
+    if(overlay) overlay.style.display = _persianaEstado[gid] ? 'flex' : 'none';
+    // Actualizar botón global
+    const todasCerradas = GRUPO_IDS.every(g => _persianaEstado[g]);
+    const btn = document.getElementById('btn-persiana-global');
+    if(btn) btn.textContent = todasCerradas ? '🔓 Abrir' : '🔒 Privacidad';
+  } else {
+    // Botón global → cerrar todas
+    GRUPO_IDS.forEach(g => {
+      _persianaEstado[g] = true;
+      const overlay = document.getElementById('persiana-'+g);
+      if(overlay) overlay.style.display = 'flex';
+    });
+    const btn = document.getElementById('btn-persiana-global');
+    if(btn) btn.textContent = '🔓 Abrir';
+  }
+}
+
+function cerrarTodasPersianas(){
+  GRUPO_IDS.forEach(g => {
+    _persianaEstado[g] = true;
+    const overlay = document.getElementById('persiana-'+g);
+    if(overlay) overlay.style.display = 'flex';
+  });
+  const btn = document.getElementById('btn-persiana-global');
+  if(btn) btn.textContent = '🔓 Abrir';
+}
+
+function renderPersiana(div, gid, label){
+  // Número del grupo (solo dígitos del label)
+  const num = label.replace(/[^0-9]/g,'') || label.slice(0,2).toUpperCase();
+
+  // SVG de fondo decorativo: líneas de circuito + puntos
+  const svgFondo = `<svg class="persiana-svg" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern id="grid-${gid}" width="40" height="40" patternUnits="userSpaceOnUse">
+        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#4d9fff" stroke-width="0.5" opacity="0.4"/>
+      </pattern>
+    </defs>
+    <rect width="400" height="200" fill="url(#grid-${gid})"/>
+    <circle cx="200" cy="100" r="80" fill="none" stroke="#4d9fff" stroke-width="0.8" opacity="0.3"/>
+    <circle cx="200" cy="100" r="120" fill="none" stroke="#4d9fff" stroke-width="0.4" opacity="0.15"/>
+    <line x1="0" y1="100" x2="400" y2="100" stroke="#4d9fff" stroke-width="0.5" opacity="0.2"/>
+    <line x1="200" y1="0" x2="200" y2="200" stroke="#4d9fff" stroke-width="0.5" opacity="0.2"/>
+    <circle cx="200" cy="100" r="3" fill="#4d9fff" opacity="0.6"/>
+    <circle cx="80" cy="40" r="2" fill="#4d9fff" opacity="0.4"/>
+    <circle cx="320" cy="40" r="2" fill="#4d9fff" opacity="0.4"/>
+    <circle cx="80" cy="160" r="2" fill="#4d9fff" opacity="0.4"/>
+    <circle cx="320" cy="160" r="2" fill="#4d9fff" opacity="0.4"/>
+    <path d="M80,40 L120,40 L120,100 L160,100" stroke="#4d9fff" stroke-width="0.6" fill="none" opacity="0.25"/>
+    <path d="M320,40 L280,40 L280,100 L240,100" stroke="#4d9fff" stroke-width="0.6" fill="none" opacity="0.25"/>
+    <path d="M80,160 L120,160 L120,100 L160,100" stroke="#4d9fff" stroke-width="0.6" fill="none" opacity="0.25"/>
+    <path d="M320,160 L280,160 L280,100 L240,100" stroke="#4d9fff" stroke-width="0.6" fill="none" opacity="0.25"/>
+  </svg>`;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'persiana-overlay';
+  overlay.id = 'persiana-'+gid;
+  // Respetar estado actual si ya existe; si es la primera vez, cerrada por defecto
+  if(_persianaEstado[gid] === undefined) _persianaEstado[gid] = true;
+  overlay.style.display = _persianaEstado[gid] ? 'flex' : 'none';
+  overlay.onclick = () => togglePersiana(gid);
+  overlay.innerHTML = svgFondo + `
+    <div class="persiana-content">
+      <div class="persiana-lock">🔒</div>
+      <div class="persiana-numero">${num}</div>
+      <div class="persiana-label">GRUPO ${label}</div>
+      <div class="persiana-abrir-hint">— clic para abrir —</div>
+    </div>
+`;
+  // Insertar como primer hijo para que z-index funcione sobre todo el contenido
+  div.insertBefore(overlay, div.firstChild);
 }
 
 function buscarOperario(query){
@@ -4804,45 +5027,32 @@ function aplicarAusenciasHoy(){
 }
 
 
-// ══ WAKE LOCK — evitar suspensión ══
+// ══ WAKE LOCK — evitar suspensión (WakeLock API + video fallback) ══
 let _wakeLock = null;
 
 async function activarWakeLock(){
   try{
     if('wakeLock' in navigator){
       _wakeLock = await navigator.wakeLock.request('screen');
-      console.log('Wake Lock activo');
-      // Reactivar si se libera (ej. al minimizar y volver)
-      _wakeLock.addEventListener('release', ()=>{
-        setTimeout(activarWakeLock, 2000);
-      });
+      _wakeLock.addEventListener('release', ()=>{ setTimeout(activarWakeLock, 2000); });
     }
-  }catch(e){ console.warn('Wake Lock no disponible:', e); }
+  }catch(e){}
+  // Fallback: mantener video reproduciéndose
+  const v = document.getElementById('keep-awake-video');
+  if(v) v.play().catch(()=>{});
 }
 
-// Reactivar cuando la página vuelve a ser visible
 document.addEventListener('visibilitychange', ()=>{
   if(document.visibilityState === 'visible') activarWakeLock();
-// Video en bucle para evitar suspensión del sistema
-setTimeout(()=>{
-  const v=document.getElementById('keep-awake-video');
-  if(v){ v.play().catch(()=>{}); }
-  document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState==='visible'&&v) v.play().catch(()=>{});
-  });
-},1000);
-
 });
 
+// Activar tras primera interacción del usuario (necesario en iOS)
+document.addEventListener('click', function wakeOnClick(){
+  activarWakeLock();
+  document.removeEventListener('click', wakeOnClick);
+}, {once: true});
+
 activarWakeLock();
-// Video en bucle para evitar suspensión del sistema
-setTimeout(()=>{
-  const v=document.getElementById('keep-awake-video');
-  if(v){ v.play().catch(()=>{}); }
-  document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState==='visible'&&v) v.play().catch(()=>{});
-  });
-},1000);
 
 
 function refrescarMensajes(){
@@ -4964,6 +5174,8 @@ function actualizarHora(){
     cambiarGrupo(grupoActivo);
     renderTramo();
     setTimeout(()=>{ actualizarSelectsGrupo(); actualizarBotonesInicio(); }, 50);
+    // Comprobar avisos tras cargar — 1.5s para que Supabase ya tenga los datos
+    setTimeout(()=>{ comprobarAgenda(); comprobarRevisionesMedicas(); actualizarAvisos(); }, 1500);
     // Mostrar pantalla inicio si no hay modo elegido
     const modo = localStorage.getItem('modoUsuario_ml2');
     if(!modo || modo === 'null'){
@@ -4983,6 +5195,8 @@ function actualizarHora(){
         guardar();
       }
       iniciarUI();
+      // Comprobar agenda y avisos tras cargar datos de Supabase
+      setTimeout(()=>{ comprobarAgenda(); comprobarRevisionesMedicas(); actualizarAvisos(); }, 500);
       if(window._fbEscuchar){
         let miTs = d?.ts||0;
         window._fbEscuchar(d2=>{
@@ -4999,6 +5213,15 @@ function actualizarHora(){
             cambiarGrupo(grupoLocal);
             renderTramo();
             mostrarToast('☁️ Actualizado');
+            // Limpiar avisos de agenda del ticker y recomprobar con datos nuevos
+            setTimeout(()=>{
+              // Borrar avisos de agenda/revmed para que se regeneren con datos actualizados
+              const track = document.getElementById('avisos-track');
+              if(track){
+                track.querySelectorAll('.agenda-item, .aviso-item[style*="orange"]').forEach(el=>el.remove());
+              }
+              comprobarAgenda(); comprobarRevisionesMedicas(); actualizarAvisos();
+            }, 300);
           }
         });
       }
