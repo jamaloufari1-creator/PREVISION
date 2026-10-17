@@ -16084,6 +16084,13 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
 #movil-off.boot .mo-car img{animation:moZoom 5s ease-out both !important;}
 @keyframes moZoom{from{transform:scale(.93)}to{transform:scale(1.05)}}
 @keyframes moEntra{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
+/* Desbloqueo: deslizar hacia arriba (móvil) o clic (PC) */
+#movil-off.boot{cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;}
+#movil-off.sube{transition:transform .45s ease-in,opacity .45s ease-in;transform:translateY(-100%) !important;opacity:0;}
+#movil-off .mo-desliza{display:none;position:absolute;left:0;right:0;bottom:22px;z-index:3;text-align:center;color:#f0c9a0;font:600 13px Oswald,sans-serif;letter-spacing:.12em;text-transform:uppercase;text-shadow:0 1px 4px #000;animation:moDesliza 1.6s ease-in-out infinite;}
+#movil-off .mo-desliza span{display:block;font-size:22px;line-height:1;}
+#movil-off.boot .mo-desliza{display:block;}
+@keyframes moDesliza{0%,100%{transform:translateY(0);opacity:.6}50%{transform:translateY(-8px);opacity:1}}
 </style>
 <script id="js-fix-angulos">
 /* Situación taller: marca las casillas/etiquetas con diagonal para dibujarles la línea exacta */
@@ -16135,9 +16142,26 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
     var o=construir(); if(!o||ocupado) return; ocupado=true; colocar();
     var car=o.querySelector('.mo-car'); try{ car.innerHTML=(typeof window._cuproCoche==='function')?window._cuproCoche():''; }catch(e){}
     o.style.opacity=''; o.className='boot'; btn().classList.remove('off'); d_().classList.remove('movil-apagado'); encendido=true;
-    setTimeout(function(){ o.classList.add('fade'); },4400);
-    setTimeout(function(){ o.className=''; o.style.opacity=''; ocupado=false; },5100);
+    // El coche se queda hasta que se desbloquea: deslizando hacia arriba en el móvil o con un clic en el PC
+    var tactil=('ontouchstart' in window)||navigator.maxTouchPoints>0;
+    var av=o.querySelector('.mo-desliza'); if(!av){ av=document.createElement('div'); av.className='mo-desliza'; o.appendChild(av); }
+    av.innerHTML='<span>︿</span>'+(tactil?'Desliza hacia arriba':'Haz clic para entrar');
+    ocupado=false;
   }
+  function desbloquear(){
+    var o=document.getElementById('movil-off'); if(!o||!o.classList.contains('boot')||o.classList.contains('sube')) return;
+    o.classList.add('sube');
+    setTimeout(function(){ o.className=''; o.style.opacity=''; o.style.transform=''; },450);
+  }
+  // Gestos sobre la pantalla del coche
+  (function(){
+    var y0=null, t0=0;
+    document.addEventListener('touchstart',function(e){ var o=e.target&&e.target.closest&&e.target.closest('#movil-off.boot'); if(!o) return; y0=e.touches[0].clientY; t0=Date.now(); },{passive:true});
+    document.addEventListener('touchmove',function(e){ if(y0==null) return; var o=document.getElementById('movil-off'); var dy=e.touches[0].clientY-y0; if(o&&dy<0) o.style.transform='translateY('+dy+'px)'; },{passive:true});
+    document.addEventListener('touchend',function(e){ if(y0==null) return; var o=document.getElementById('movil-off'); var dy=(e.changedTouches[0]||{}).clientY-y0; y0=null;
+      if(dy<-60 || (dy<-25 && Date.now()-t0<300)) desbloquear(); else if(o){ o.style.transform=''; } });
+    document.addEventListener('click',function(e){ var o=e.target&&e.target.closest&&e.target.closest('#movil-off.boot'); if(!o) return; if(('ontouchstart' in window)&&e.sourceCapabilities&&e.sourceCapabilities.firesTouchEvents) return; desbloquear(); });
+  })();
   function alternar(){ if(ocupado) return; if(encendido) apagar(); else encender(); }
   window.movilAlternarEnergia=alternar;
   // Al abrir el móvil siempre está encendido
