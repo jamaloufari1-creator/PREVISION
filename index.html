@@ -3557,8 +3557,8 @@ TÚ, EL ASISTENTE:
   if(window._curpaBreve) sysParts.push('MODO MÓVIL (muy importante): contesta SOLO a lo que te preguntan, en 1 o 2 frases cortas. Sin saludos, sin presentarte, sin rodeos, sin explicar de más, sin ofrecer otras cosas ni hacer preguntas. Si te preguntan un dato, da el dato y nada más.');
   const systemPrompt = sysParts.join('\n');
 
-  // Modelo: si hay imagen, usar el modelo con visión de Groq
-  let modeloUsar = imagenAdjunta ? 'meta-llama/llama-4-scout-17b-16e-instruct' : 'llama-3.3-70b-versatile';
+  // Modelo: Claude (lee también imágenes)
+  let modeloUsar = 'claude-haiku-5-5';
 
   try{
     // Mostrar indicador de carga
@@ -3592,7 +3592,6 @@ TÚ, EL ASISTENTE:
           window._chatUltErr = JSON.stringify(data.error).slice(0,200);
           // Si es rate limit, esperar y reintentar
           if(JSON.stringify(data.error).includes('rate_limit') || JSON.stringify(data.error).includes('quota')){
-            if(!imagenAdjunta && modeloUsar==='llama-3.3-70b-versatile') modeloUsar = 'llama-3.1-8b-instant'; // si el modelo grande está en su límite, se prueba el pequeño
             await new Promise(r=>setTimeout(r, 3000));
           } else {
             throw new Error(JSON.stringify(data.error));
@@ -3653,7 +3652,7 @@ async function _explicarErroresSorteo(errores){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        model:'llama-3.3-70b-versatile',
+        model:'claude-haiku-5-5',
         max_tokens:400,
         system:`Eres el asistente de sorteo. Analiza los errores del sorteo y explica por qué han ocurrido.
 Matriz de permisos:
