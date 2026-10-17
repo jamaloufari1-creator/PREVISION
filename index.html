@@ -1423,6 +1423,75 @@ function nuevoIdOperario(g){
   return nuevo;
 }
 
+// ── Fusión de grupos entre dispositivos ──
+// _baseGrupos guarda cómo estaba cada grupo la última vez que este dispositivo lo sincronizó con la
+// nube (al cargar, al recibir una actualización o al subir). Antes de subir se compara: lo que
+// solo cambió aquí se sube, lo que solo cambió en otro móvil se respeta, y así un móvil con una
+// copia vieja ya no devuelve una carga u operario que otro acaba de borrar.
+window._baseGrupos = null;
+function _fijarBaseGrupos(datosStr){
+  try{ const d = typeof datosStr === 'string' ? JSON.parse(datosStr) : datosStr; if(d && d.GRUPOS_DATA) window._baseGrupos = d.GRUPOS_DATA; }catch(e){}
+}
+function _igual(a, b){
+  if(a === b) return true;
+  if(typeof a !== typeof b || a === null || b === null || typeof a !== 'object') return false;
+  if(Array.isArray(a) !== Array.isArray(b)) return false;
+  if(Array.isArray(a)){
+    if(a.length !== b.length) return false;
+    for(let i=0;i<a.length;i++) if(!_igual(a[i], b[i])) return false;
+    return true;
+  }
+  const ka = Object.keys(a), kb = Object.keys(b);
+  if(ka.length !== kb.length) return false;
+  for(const k of ka) if(!Object.prototype.hasOwnProperty.call(b, k) || !_igual(a[k], b[k])) return false;
+  return true;
+}
+function _mapaPorId(arr){
+  if(!Array.isArray(arr)) return null;
+  const m = new Map();
+  for(const x of arr){
+    if(!x || typeof x !== 'object' || x.id === undefined || x.id === null || m.has(x.id)) return null; // sin id o repetido: no se puede fusionar por id
+    m.set(x.id, x);
+  }
+  return m;
+}
+// Fusión a tres bandas: base = última versión común, local = la de este móvil, remoto = la de la nube.
+function _fusionar3(base, local, remoto){
+  if(_igual(local, base)) return remoto;   // aquí no se tocó: manda la nube
+  if(_igual(remoto, base)) return local;   // en la nube no se tocó: manda lo de aquí
+  if(_igual(local, remoto)) return local;
+  // Listas de cosas con id (operarios, cargas...): fusionar elemento a elemento
+  const mb = _mapaPorId(base), ml = _mapaPorId(local), mr = _mapaPorId(remoto);
+  if(mb && ml && mr){
+    const ordenLocalCambio = !_igual(local.map(x=>x.id), base.map(x=>x.id));
+    const orden = (ordenLocalCambio ? local : remoto).map(x=>x.id);
+    (ordenLocalCambio ? remoto : local).forEach(x=>{ if(!orden.includes(x.id)) orden.push(x.id); });
+    const res = [];
+    for(const id of orden){
+      const b = mb.get(id), l = ml.get(id), r = mr.get(id);
+      if(b === undefined){ const v = l !== undefined ? l : r; if(v !== undefined) res.push(v); continue; }   // nuevo (si los dos crearon el mismo id, se queda el de aquí)
+      if(l === undefined){ if(r !== undefined && !_igual(r, b)) res.push(r); continue; }   // borrado aquí (salvo que otro lo cambiara)
+      if(r === undefined){ if(!_igual(l, b)) res.push(l); continue; }                      // borrado en otro móvil
+      res.push(_fusionar3(b, l, r));
+    }
+    return res;
+  }
+  // Objetos normales: campo a campo
+  if(local && remoto && typeof local === 'object' && typeof remoto === 'object' && !Array.isArray(local) && !Array.isArray(remoto)){
+    const b = (base && typeof base === 'object' && !Array.isArray(base)) ? base : {};
+    const res = {};
+    const claves = new Set([...Object.keys(local), ...Object.keys(remoto)]);
+    for(const k of claves){
+      const enL = k in local, enR = k in remoto, enB = k in b;
+      if(enL && enR) res[k] = _fusionar3(b[k], local[k], remoto[k]);
+      else if(enL){ if(!enB || !_igual(local[k], b[k])) res[k] = local[k]; }
+      else if(enR){ if(!enB || !_igual(remoto[k], b[k])) res[k] = remoto[k]; }
+    }
+    return res;
+  }
+  return local; // los dos cambiaron lo mismo: gana el último que guarda (este)
+}
+
 // Protección: antes de subir a la nube, comprobar si ALGUIEN MÁS ya puso una secuencia de coche
 // más reciente que la nuestra (por ejemplo, el supervisor la acaba de escribir en otro dispositivo).
 // Si esta pestaña no ha tocado el último coche hace poco, se respeta la versión de la nube.
@@ -1430,7 +1499,7 @@ async function _protegerUltimoCocheAntesDeGuardar(){
   const mi = window._modoUsuario||grupoActivo;
   const esSupervisor = mi==='supervisor'||mi==='admin';
   const editadoAqui = window._ultimoCocheEditadoLocal && (Date.now() - window._ultimoCocheEditadoLocal < 8000);
-  if(editadoAqui) return false; // esta pestaña acaba de tocarlo: su copia manda, no hace falta comprobar
+  // Si esta pestaña acaba de tocar el último coche, su copia de la secuencia manda (pero los grupos se fusionan igual)
   if(!window._fbCargar) return false;
   try{
     const remoto = await window._fbCargar();
@@ -1441,7 +1510,7 @@ async function _protegerUltimoCocheAntesDeGuardar(){
       // sesión (grupos, conductor/servicio/eléctrico, invitado) SIEMPRE refleja tal cual lo que
       // haya en la nube al guardar cualquier otra cosa (una carga, un mensaje, etc.) — así nunca
       // puede arrastrar sin querer una copia vieja por encima de lo que puso el supervisor.
-      if(_d.ultimoCoche && (esSupervisor ? (_d.ultimoCoche.ts||0) > (ultimoCoche.ts||0) : true)){
+      if(!editadoAqui && _d.ultimoCoche && (esSupervisor ? (_d.ultimoCoche.ts||0) > (ultimoCoche.ts||0) : true)){
         ultimoCoche.tactoRef = _d.ultimoCoche.tactoRef;
         ultimoCoche.cocheRef = _d.ultimoCoche.cocheRef;
         ultimoCoche.turno = _d.ultimoCoche.turno || null;
@@ -1455,14 +1524,14 @@ async function _protegerUltimoCocheAntesDeGuardar(){
         _tactosNextId = Math.max(_tactosNextId, maxId + 1);
         cambio = true;
       }
-      if(_d.previsionTurno && (esSupervisor ? (_d.previsionTurno.ts||0) > (previsionTurno.ts||0) : true)){
+      if(!editadoAqui && _d.previsionTurno && (esSupervisor ? (_d.previsionTurno.ts||0) > (previsionTurno.ts||0) : true)){
         if(_d.previsionTurno.produccionPorTurno) previsionTurno.produccionPorTurno = _d.previsionTurno.produccionPorTurno;
         if(_d.previsionTurno.perdidosPorTurno) previsionTurno.perdidosPorTurno = _d.previsionTurno.perdidosPorTurno;
         previsionTurno.perdidosPulmonPorTurno = _d.previsionTurno.perdidosPulmonPorTurno || { manana: null, tarde: null, noche: null };
         previsionTurno.ts = _d.previsionTurno.ts;
         cambio = true;
       }
-      if(_d.ultimoCochePulmon && (esSupervisor ? (_d.ultimoCochePulmon.ts||0) > (ultimoCochePulmon.ts||0) : true)){
+      if(!editadoAqui && _d.ultimoCochePulmon && (esSupervisor ? (_d.ultimoCochePulmon.ts||0) > (ultimoCochePulmon.ts||0) : true)){
         ultimoCochePulmon.tactoRef = _d.ultimoCochePulmon.tactoRef;
         ultimoCochePulmon.cocheRef = _d.ultimoCochePulmon.cocheRef;
         ultimoCochePulmon.turno = _d.ultimoCochePulmon.turno || null;
@@ -1477,14 +1546,34 @@ async function _protegerUltimoCocheAntesDeGuardar(){
       // Los grupos que NO se están editando ahora mismo en este móvil: si la nube tiene algo
       // más nuevo de ellos, se adopta antes de guardar — así este dispositivo nunca sube por
       // accidente una copia vieja de un grupo ajeno (ej. un permiso ya borrado que reaparece).
+      // Con la versión base (lo último sincronizado) se fusiona TAMBIÉN el grupo que se está editando
+      // aquí: si dos personas tocan el mismo grupo a la vez, se conservan los cambios de las dos.
+      let _cambioActivo = false;
       GRUPO_IDS.forEach(gid=>{
-        if(gid === grupoActivo) return; // el que se está tocando aquí ahora, no se toca
         const gRemoto = _d.GRUPOS_DATA && _d.GRUPOS_DATA[gid];
-        if(gRemoto && (gRemoto._ts||0) > (GRUPOS_DATA[gid]._ts||0)){
+        if(!gRemoto || !GRUPOS_DATA[gid]) return;
+        const gBase = window._baseGrupos && window._baseGrupos[gid];
+        if(gBase){
+          if(_igual(gRemoto, gBase)) return; // nadie más lo cambió
+          const fusion = _fusionar3(gBase, GRUPOS_DATA[gid], gRemoto);
+          if(!_igual(fusion, GRUPOS_DATA[gid])){
+            if(gid === grupoActivo){ fusion._ts = _ahoraServidor(); _cambioActivo = true; }
+            GRUPOS_DATA[gid] = fusion;
+            cambio = true;
+          }
+          return;
+        }
+        if(gid === grupoActivo) return; // sin base conocida: el que se está tocando aquí ahora, no se toca
+        if((gRemoto._ts||0) > (GRUPOS_DATA[gid]._ts||0)){
           GRUPOS_DATA[gid] = gRemoto;
           cambio = true;
         }
       });
+      if(_cambioActivo){
+        const a = document.activeElement;
+        const escribiendo = a && (a.tagName==='INPUT' || a.tagName==='TEXTAREA' || a.tagName==='SELECT' || a.isContentEditable);
+        if(!escribiendo){ try{ cambiarGrupo(grupoActivo); }catch(e){} }
+      }
       // El histórico NUNCA se sobrescribe: se UNEN las entradas de la nube con las de aquí,
       // así ningún dispositivo puede borrar sin querer un día archivado por otro.
       if(_d.historicoCoches){
@@ -1566,6 +1655,7 @@ function guardar(){
       if(seActualizo){ localStorage.setItem(LS_KEY, estadoFinal); window._estadoGuardado = estadoFinal; }
       if(window._fbGuardar && estadoFinal){
         window._fbGuardar(estadoFinal).then(()=>{
+          _fijarBaseGrupos(estadoFinal);
           if(estadoFinal===window._estadoGuardado){ try{ localStorage.removeItem(LS_KEY+'_pend'); }catch(e){} }
           const hora = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
           if(elHora) elHora.textContent = '🕐 '+hora;
@@ -1597,6 +1687,7 @@ function guardarYa(){
         estadoFinal = window._estadoGuardado;
       }
       window._fbGuardar(estadoFinal).then(()=>{
+        _fijarBaseGrupos(estadoFinal);
         if(estadoFinal===window._estadoGuardado){ try{ localStorage.removeItem(LS_KEY+'_pend'); }catch(e){} }
         const hora = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
         if(elHora) elHora.textContent = '🕐 '+hora;
@@ -5460,7 +5551,11 @@ function iniciarPresencia(){
   // Limpiar al cerrar
   window.addEventListener('beforeunload',()=>{
     // Guardar estado final en Firebase al cerrar
-    if(window._fbGuardar && window._estadoGuardado){
+    // Solo si quedó un cambio de este móvil SIN subir. Antes se subía siempre la última copia
+    // de este móvil al cerrar, y eso devolvía datos viejos por encima de lo que otros habían cambiado.
+    let _pendiente = false;
+    try{ _pendiente = localStorage.getItem(LS_KEY+'_pend')==='1'; }catch(e){}
+    if(_pendiente && window._fbGuardar && window._estadoGuardado){
       try{ window._fbGuardar(window._estadoGuardado); }catch(e){}
     }
     try{ if(window._sbPresencia) window._sbPresencia.borrar(gid); }catch(e){}
@@ -7484,12 +7579,7 @@ function guardarAgenda(){
   if(!op.ausencias) op.ausencias = [];
   op.ausencias.push({motivo, fecha, fechaFin, horaIni, horaFin, nota, ts:Date.now()});
   op.ausencias.sort((a,b)=>a.fecha.localeCompare(b.fecha));
-  guardar();
-  // Forzar escritura inmediata en Supabase con el estado ya actualizado
-  clearTimeout(_guardarTimeout);
-  setTimeout(()=>{
-    if(window._fbGuardar && window._estadoGuardado) window._fbGuardar(window._estadoGuardado);
-  }, 50);
+  guardarYa(); // escritura inmediata en Supabase (con la fusión de cambios de otros móviles)
   renderAgendaLista(op);
   renderOpList();
   mostrarToast('📅 Ausencia registrada');
@@ -7503,10 +7593,7 @@ function eliminarAusencia(idx){
   const op = GRUPOS_DATA[_agendaGid].operarios.find(o=>o.id===_agendaOpId);
   if(!op || !op.ausencias) return;
   op.ausencias.splice(idx,1);
-  guardar();
-  // Forzar escritura inmediata en Supabase
-  clearTimeout(_guardarTimeout);
-  setTimeout(()=>{ if(window._fbGuardar && window._estadoGuardado) window._fbGuardar(window._estadoGuardado); }, 50);
+  guardarYa(); // escritura inmediata en Supabase (con la fusión de cambios de otros móviles)
   // Limpiar todos los avisos de agenda del ticker y regenerar
   const track = document.getElementById('avisos-track');
   if(track) track.querySelectorAll('.agenda-item').forEach(el=>el.remove());
@@ -13167,10 +13254,20 @@ function actualizarHora(){
       if(d && d.datos){
         // Si quedó un guardado local SIN subir (p.ej. se recargó/cerró antes de que terminara
         // de subirse), ese estado local es más nuevo que la nube: se conserva y se sube.
+        _fijarBaseGrupos(d.datos);
+        // Solo se recuperan los grupos cuya copia local es MÁS NUEVA que la de la nube: antes se subía
+        // la copia local entera y se pisaban los cambios que otros habían hecho mientras tanto.
         try{
           if(localStorage.getItem(LS_KEY+'_pend')==='1'){
-            const _loc = localStorage.getItem(LS_KEY);
-            if(_loc && JSON.parse(_loc).GRUPOS_DATA){ d = {...d, datos:_loc}; _hayPendiente = true; }
+            const _loc = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+            const _nube = JSON.parse(d.datos);
+            if(_loc && _loc.GRUPOS_DATA && _nube && _nube.GRUPOS_DATA){
+              Object.keys(_loc.GRUPOS_DATA).forEach(gid=>{
+                const gl = _loc.GRUPOS_DATA[gid], gn = _nube.GRUPOS_DATA[gid];
+                if(!gn || (gl && (gl._ts||0) > (gn._ts||0))){ _nube.GRUPOS_DATA[gid] = gl; _hayPendiente = true; }
+              });
+              if(_hayPendiente) d = {...d, datos: JSON.stringify(_nube)};
+            }
           }
         }catch(e){}
         // Firebase siempre gana — reemplazar GRUPOS_DATA completamente
@@ -13248,13 +13345,18 @@ function actualizarHora(){
       setTimeout(()=>{ comprobarAgenda(); comprobarRevisionesMedicas(); actualizarAvisos(); comprobarCierreTurno(); comprobarPerdidosAutoCero(); resetearPresenciaDiaria(); limpiarHistoricoAntiguo(); }, 500);
       if(window._fbEscuchar){
         let miTs = d?.ts||0;
-        window._fbEscuchar(d2=>{
+        let _alRemoto;
+        window._fbEscuchar(_alRemoto = d2=>{
           // Solo aplicar si Firebase tiene datos más nuevos que nuestro último guardado local
           const tsLocal = window._estadoGuardado ? (JSON.parse(window._estadoGuardado).ts||0) : 0;
           // PROTECCIÓN: si el usuario editó algo hace menos de 10s, NO pisar sus cambios
           const editandoAhora = window._ultimaEdicionLocal && (Date.now() - window._ultimaEdicionLocal < 4000);
           if(editandoAhora){
-            return; // ignorar la actualización remota, el usuario está trabajando
+            // El usuario está trabajando: no pisar ahora, pero tampoco perder la actualización
+            // (antes se descartaba y este móvil se quedaba con la copia vieja).
+            clearTimeout(window._remotoReintento);
+            window._remotoReintento = setTimeout(()=>{ if(window._nubePausada) return; try{ _alRemoto(d2); }catch(e){} }, 4500);
+            return;
           }
           if(d2&&d2.ts&&d2.ts>miTs+500&&d2.datos&&d2.ts>tsLocal){
             miTs=d2.ts;
@@ -13266,6 +13368,8 @@ function actualizarHora(){
             const _prAntes = JSON.stringify([previsionTurno.perdidosPorTurno, _mapaPerdidos('pulmon')]);
             try{
               try{ localStorage.setItem(LS_KEY,d2.datos); }catch(e){}
+              _fijarBaseGrupos(d2.datos);
+              window._estadoGuardado = d2.datos; // lo último conocido ya es lo de la nube (para no resubir una copia vieja)
               cargarEstado(); // ya deja tramoConfig.turno con el de este dispositivo y los datos sincronizados
               try{ _fusionarRutinaRemota(JSON.parse(d2.datos).appConfig); }catch(e){ console.warn('fusión rutina:', e); }   // checks de rutina (portavoces y supervisores) hechos en otro dispositivo
               grupoActivo = grupoLocal; // restaurar grupo del usuario
