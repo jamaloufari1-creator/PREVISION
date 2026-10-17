@@ -1296,10 +1296,17 @@ console.log('Supabase conectado correctamente');
       <div style="padding:6px 10px 10px;border-top:1px solid #1e2535;display:flex;flex-direction:column;gap:5px;flex-shrink:0;background:#0a0c10;">
         <!-- Panel emojis -->
         <div id="movil-emoji-panel" style="display:none;flex-wrap:wrap;gap:3px;padding:6px 5px;background:#0d1117;border-radius:10px;max-height:76px;overflow-y:auto;"></div>
+        <!-- Menú del clip: cámara, defecto de coche y galería -->
+        <div id="movil-clip-panel" style="display:none;gap:6px;justify-content:space-around;padding:8px 6px;background:#0d1117;border-radius:10px;">
+          <button onclick="movilClipOpcion('camara')" style="flex:1;background:#151b26;border:1px solid #1e2535;border-radius:10px;color:#dce3ed;padding:8px 4px;cursor:pointer;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:20px;">📷</span>Cámara</button>
+          <button onclick="movilClipOpcion('defecto')" style="flex:1;background:#151b26;border:1px solid #1e2535;border-radius:10px;color:#dce3ed;padding:8px 4px;cursor:pointer;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:20px;">🚗</span>Defecto coche</button>
+          <button onclick="movilClipOpcion('galeria')" style="flex:1;background:#151b26;border:1px solid #1e2535;border-radius:10px;color:#dce3ed;padding:8px 4px;cursor:pointer;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:20px;">🖼️</span>Galería</button>
+        </div>
         <!-- Input fila -->
         <div style="display:flex;gap:6px;align-items:center;background:#111827;border-radius:20px;padding:5px 10px;">
           <button id="movil-emoji-btn" onclick="toggleMovilEmoji()" style="background:none;border:none;cursor:pointer;padding:0;flex-shrink:0;line-height:1;font-style:normal;" title="Emojis"><span style="font-size:20px;">😊</span></button>
-          <button id="movil-foto-btn" onclick="_engancharFotoInput();document.getElementById('movil-foto-input').click();mostrarToast('📷 Abriendo cámara…');" style="background:none;border:none;cursor:pointer;padding:0;flex-shrink:0;line-height:1;" title="Enviar foto"><span style="font-size:19px;">📷</span></button>
+          <button id="movil-clip-btn" onclick="toggleMovilClip(event)" style="background:none;border:none;cursor:pointer;padding:0;flex-shrink:0;line-height:1;" title="Adjuntar"><span style="font-size:19px;">📎</span></button>
+          <button id="movil-foto-btn" onclick="_engancharFotoInput();document.getElementById('movil-foto-input').click();mostrarToast('📷 Abriendo cámara…');" style="display:none;" title="Enviar foto"></button>
           <input type="file" id="movil-foto-input" accept="image/*,android/allowCamera" style="display:none;">
           <input id="movil-reply-inp" placeholder="Escribe un mensaje…"
             style="flex:1;background:transparent;border:none;outline:none;font-size:13px;color:#dce3ed;font-family:IBM Plex Sans,sans-serif;min-width:0;"
@@ -1340,6 +1347,20 @@ console.log('Supabase conectado correctamente');
         <input id="ca-tacto" type="number" inputmode="numeric" placeholder="ej. 21"
           style="background:#1a1e2a;border:1px solid #2a3040;border-radius:6px;padding:8px;color:#dce3ed;font-family:IBM Plex Mono,monospace;font-size:14px;outline:none;">
       </label>
+      <div style="display:flex;gap:8px;">
+        <label style="flex:1;font-size:11px;color:#8fa8c9;display:flex;flex-direction:column;gap:4px;">
+          Hora (si no es ahora)
+          <input id="ca-hora" type="time"
+            style="background:#1a1e2a;border:1px solid #2a3040;border-radius:6px;padding:8px;color:#dce3ed;font-family:IBM Plex Mono,monospace;font-size:14px;outline:none;">
+        </label>
+        <label style="flex:1;font-size:11px;color:#8fa8c9;display:flex;flex-direction:column;gap:4px;">
+          Zona
+          <select id="ca-zona" onchange="_caCambioZona(this.value)" style="background:#1a1e2a;border:1px solid #2a3040;border-radius:6px;padding:8px;color:#dce3ed;font-family:IBM Plex Mono,monospace;font-size:13px;outline:none;">
+            <option value="ramal2">Ramal 2</option>
+            <option value="tramo2">Tramo 2</option>
+          </select>
+        </label>
+      </div>
       <label style="font-size:11px;color:#8fa8c9;display:flex;flex-direction:column;gap:4px;">
         Mandar aviso del defecto a
         <select id="ca-destino" style="background:#1a1e2a;border:1px solid #2a3040;border-radius:6px;padding:8px;color:#dce3ed;font-family:IBM Plex Mono,monospace;font-size:13px;outline:none;"></select>
@@ -5926,6 +5947,34 @@ function movilEnviarMensaje(){
   movilEnviarConv();
 }
 
+// ── Clip 📎 del teléfono: cámara, defecto de coche o galería ──
+function toggleMovilClip(ev){
+  if(ev) ev.stopPropagation();
+  const p = document.getElementById('movil-clip-panel');
+  if(!p) return;
+  const abrir = p.style.display === 'none';
+  p.style.display = abrir ? 'flex' : 'none';
+  if(abrir){ const em = document.getElementById('movil-emoji-panel'); if(em) em.style.display = 'none'; }
+}
+function movilClipOpcion(op){
+  const p = document.getElementById('movil-clip-panel');
+  if(p) p.style.display = 'none';
+  if(op === 'camara'){
+    const b = document.getElementById('movil-foto-btn'); if(b) b.click(); // abre la cámara dentro de la app
+  } else if(op === 'galeria'){
+    _engancharFotoInput();
+    const i = document.getElementById('movil-foto-input');
+    if(i){ i.removeAttribute('capture'); i.click(); }
+  } else if(op === 'defecto'){
+    abrirCuentaAtras();
+    // El aviso va por defecto a la conversación que está abierta
+    const sel = document.getElementById('ca-destino');
+    const dest = (typeof _movilConvGid !== 'undefined' && _movilConvGid) ? _movilConvGid : 'todos';
+    if(sel && [...sel.options].some(o=>o.value===dest)) sel.value = dest;
+    setTimeout(()=>{ const s2 = document.getElementById('ca-secuencia'); if(s2) s2.focus(); }, 50);
+  }
+}
+
 // ── Enviar foto (cámara o galería) ──
 // La tabla de mensajes no tiene columna para imágenes, así que se guarda una URL
 // marcada dentro del propio texto (MARCA_FOTO) — no hace falta tocar la base de datos.
@@ -5957,7 +6006,7 @@ function _iniciarCuentaEnBurbuja(msgId, datos){
     if(barraEl) barraEl.style.width = Math.max(0,(restanteMs/1000)/datos.segTot*100)+'%';
     const transcurrido = datos.segTot - restanteMs/1000;
     const tactosAv = Math.floor(transcurrido/TIEMPO_TACTO_SEG);
-    const tactoActual = Math.min(TACTO_SUPERVISOR, datos.tIni+tactosAv);
+    const tactoActual = Math.min(datos.tFin||TACTO_SUPERVISOR, datos.tIni+tactosAv);
     if(tactoEl) tactoEl.textContent = '📍 Tacto '+tactoActual;
   };
   tick();
@@ -5992,7 +6041,7 @@ function _burbujaContenidoHtml(texto, msgId, msgGid){
     if(datos.reparado){
       return `<div style="display:flex;flex-direction:column;gap:6px;min-width:190px;">
         <div style="font-size:12px;color:#dce3ed;">⚠️ <b>${datos.def}</b></div>
-        <div style="font-size:10px;color:#8fa8c9;">${datos.seq?('Coche '+datos.seq+' · '):''}tacto ${datos.tIni} → ${TACTO_SUPERVISOR}</div>
+        <div style="font-size:10px;color:#8fa8c9;">${datos.seq?('Coche '+datos.seq+' · '):''}tacto ${datos.tIni} → ${datos.tFin||TACTO_SUPERVISOR}${datos.zona==='tramo2'?' (Tramo 2)':''}</div>
         <div style="text-align:center;padding:6px 0;color:#7fd88f;font-family:Oswald,sans-serif;font-weight:700;font-size:16px;">✅ REPARADO</div>
       </div>`;
     }
@@ -6000,7 +6049,7 @@ function _burbujaContenidoHtml(texto, msgId, msgGid){
     const defEsc = String(datos.def||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
     return `<div id="cab-wrap-${msgId}" style="display:flex;flex-direction:column;gap:6px;min-width:190px;">
       <div style="font-size:12px;color:#dce3ed;">⚠️ <b>${datos.def}</b></div>
-      <div style="font-size:10px;color:#8fa8c9;">${datos.seq?('Coche '+datos.seq+' · '):''}tacto ${datos.tIni} → ${TACTO_SUPERVISOR}</div>
+      <div style="font-size:10px;color:#8fa8c9;">${datos.seq?('Coche '+datos.seq+' · '):''}tacto ${datos.tIni} → ${datos.tFin||TACTO_SUPERVISOR}${datos.zona==='tramo2'?' (Tramo 2)':''}</div>
       <div id="cab-reloj-${msgId}" style="font-family:Oswald,sans-serif;font-size:26px;font-weight:700;color:#e0a46f;text-align:center;letter-spacing:.03em;">--:--</div>
       <div id="cab-tacto-${msgId}" style="font-size:11px;color:#7fd88f;text-align:center;font-weight:700;font-family:IBM Plex Mono,monospace;"></div>
       <div style="width:100%;height:7px;background:#0d0f16;border-radius:4px;overflow:hidden;">
@@ -12288,10 +12337,29 @@ let _caFinTs = null;
 let _caTactoInicial = null;
 let _caSegundosTotales = null;
 
+// Zona del defecto: Ramal 2 sale por el tacto del supervisor (46) y Tramo 2 por el del supervisor TR2 (53).
+// Se recuerda la última elegida en este móvil; si nunca se eligió, la de la sección del grupo.
+function _caZonaPorDefecto(){
+  try{ const z = localStorage.getItem('ca_zona'); if(z==='ramal2' || z==='tramo2') return z; }catch(e){}
+  try{ const mi = window._modoUsuario||grupoActivo; if(/^g\d+$/.test(mi||'')) return seccionDeGrupo(mi.slice(1))==='tramo2' ? 'tramo2' : 'ramal2'; }catch(e){}
+  return 'ramal2';
+}
+function _caTactoSalida(zona){ return zona==='tramo2' ? TACTO_SUPERVISOR_TR2 : TACTO_SUPERVISOR; }
+function _caCambioZona(zona){
+  try{ localStorage.setItem('ca_zona', zona); }catch(e){}
+  const nota = document.getElementById('ca-nota-salida');
+  if(nota) nota.textContent = `La salida (${zona==='tramo2'?'Tramo 2':'Ramal 2'}) es el tacto ${_caTactoSalida(zona)} — tiempo de tacto: 2:14 centesimal (2,14 min) por puesto.`;
+}
+let _caTactoFin = TACTO_SUPERVISOR;
+
 function abrirCuentaAtras(){
   const modal = document.getElementById('modal-cuenta-atras');
-  const nota = document.getElementById('ca-nota-salida');
-  if(nota) nota.textContent = `La salida (tacto del supervisor) es el tacto ${TACTO_SUPERVISOR} — tiempo de tacto: 2:14 centesimal (2,14 min) por puesto.`;
+  const selZona = document.getElementById('ca-zona');
+  const zona = _caZonaPorDefecto();
+  if(selZona) selZona.value = zona;
+  _caCambioZona(zona);
+  const inpHora = document.getElementById('ca-hora');
+  if(inpHora) inpHora.value = '';
   const sel = document.getElementById('ca-destino');
   if(sel){
     let opts = '<option value="todos">👥 Todos</option><option value="supervisor">🟣 Supervisor</option>';
@@ -12319,13 +12387,24 @@ function iniciarCuentaAtras(){
   const destino = document.getElementById('ca-destino')?.value || 'todos';
   if(isNaN(tacto)){ mostrarToast('⚠ Escribe el tacto donde está el coche'); return; }
   if(!defecto){ mostrarToast('⚠ Escribe qué defecto lleva el coche'); return; }
-  const tactosRestantes = TACTO_SUPERVISOR - tacto;
+  const zona = document.getElementById('ca-zona')?.value || 'ramal2';
+  _caTactoFin = _caTactoSalida(zona);
+  // Hora en que el coche estaba en ese tacto (vacía = ahora). Si es "más tarde" que ahora, era de ayer.
+  let tsHora = Date.now();
+  const horaTxt = document.getElementById('ca-hora')?.value || '';
+  if(/^\d{1,2}:\d{2}$/.test(horaTxt)){
+    const [hh, mi2] = horaTxt.split(':').map(Number);
+    const dH = new Date(); dH.setHours(hh, mi2, 0, 0);
+    if(dH.getTime() > Date.now() + 60000) dH.setDate(dH.getDate()-1);
+    tsHora = dH.getTime();
+  }
+  const tactosRestantes = _caTactoFin - tacto;
   document.getElementById('cuenta-atras-form').style.display = 'none';
   const res = document.getElementById('cuenta-atras-resultado');
   res.style.display = 'flex';
   const reloj = document.getElementById('ca-reloj');
   reloj.style.color = '#e0a46f';
-  document.getElementById('ca-etiqueta').textContent = (secuencia ? ('Coche '+secuencia+' · ') : '')+'tacto '+tacto+' → '+TACTO_SUPERVISOR;
+  document.getElementById('ca-etiqueta').textContent = (secuencia ? ('Coche '+secuencia+' · ') : '')+'tacto '+tacto+' → '+_caTactoFin+(zona==='tramo2'?' (Tramo 2)':'');
   const defectoMsg = document.getElementById('ca-defecto-msg');
   if(defectoMsg) defectoMsg.innerHTML = '⚠️ <b>'+defecto+'</b>';
   const barra = document.getElementById('ca-barra');
@@ -12339,18 +12418,18 @@ function iniciarCuentaAtras(){
   }
   _caTactoInicial = tacto;
   _caSegundosTotales = tactosRestantes * TIEMPO_TACTO_SEG;
-  _caFinTs = Date.now() + _caSegundosTotales*1000;
+  _caFinTs = tsHora + _caSegundosTotales*1000;
   if(barra) barra.style.width = '100%';
   _actualizarRelojCuentaAtras(tactosRestantes);
   if(_caInterval) clearInterval(_caInterval);
   _caInterval = setInterval(()=>_actualizarRelojCuentaAtras(tactosRestantes), 1000);
-  enviarAvisoDefecto(tacto, secuencia, defecto, tactosRestantes, _caSegundosTotales, _caFinTs, destino);
+  enviarAvisoDefecto(tacto, secuencia, defecto, tactosRestantes, _caSegundosTotales, _caFinTs, destino, _caTactoFin, zona);
 }
 
-function enviarAvisoDefecto(tacto, secuencia, defecto, tactosRestantes, segundosTotales, finTs, destino){
+function enviarAvisoDefecto(tacto, secuencia, defecto, tactosRestantes, segundosTotales, finTs, destino, tactoFin, zona){
   const mi = window._modoUsuario||grupoActivo;
   const grupoLabel = (visorRoleIds().includes(mi)&&!['conductor','servicio','electrico'].includes(mi))?rolVisorLabel(mi):mi==='supervisor'?'SUPERVISOR':mi==='conductor'?'CONDUCTOR':mi==='servicio'?'SERV.CLI':mi==='electrico'?'ELECTRICO':'G'+(appConfig.grupos[mi]||mi.replace('g','G').toUpperCase());
-  const datos = {fin:finTs, tIni:tacto, segTot:segundosTotales, def:defecto, seq:secuencia};
+  const datos = {fin:finTs, tIni:tacto, segTot:segundosTotales, def:defecto, seq:secuencia, tFin:tactoFin||TACTO_SUPERVISOR, zona:zona||'ramal2'};
   const texto = MARCA_CUENTA + JSON.stringify(datos);
   const ts = Date.now();
   window._misMensajes = window._misMensajes||new Set();
@@ -12390,7 +12469,7 @@ function _actualizarRelojCuentaAtras(tactosRestantes){
     reloj.textContent = '🚗 ¡HA SALIDO!';
     reloj.style.color = '#7fd88f';
     if(rest) rest.textContent = '';
-    if(tactoEl) tactoEl.textContent = 'Tacto '+TACTO_SUPERVISOR+' (salida)';
+    if(tactoEl) tactoEl.textContent = 'Tacto '+_caTactoFin+' (salida)';
     if(barra) barra.style.width = '0%';
     if(_caInterval){ clearInterval(_caInterval); _caInterval = null; }
     return;
@@ -12403,7 +12482,7 @@ function _actualizarRelojCuentaAtras(tactosRestantes){
   // Tacto actual del coche, calculado por el tiempo ya transcurrido
   const transcurridoSeg = _caSegundosTotales - (restanteMs/1000);
   const tactosAvanzados = Math.floor(transcurridoSeg / TIEMPO_TACTO_SEG);
-  const tactoActual = Math.min(TACTO_SUPERVISOR, _caTactoInicial + tactosAvanzados);
+  const tactoActual = Math.min(_caTactoFin, _caTactoInicial + tactosAvanzados);
   if(tactoEl) tactoEl.textContent = '📍 Va por el tacto '+tactoActual;
   if(barra) barra.style.width = Math.max(0, (restanteMs/1000)/_caSegundosTotales*100)+'%';
 }
@@ -16734,12 +16813,20 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
 })();
 </script>
 <style id="css-camara-app">
-#cam-app{position:fixed;inset:0;z-index:100002;background:#000;display:flex;flex-direction:column;}
-#cam-app video{flex:1;min-height:0;width:100%;object-fit:cover;background:#000;}
-#cam-app .cam-bar{display:flex;align-items:center;justify-content:space-around;padding:14px 10px calc(14px + env(safe-area-inset-bottom));background:#0b0b0b;}
-#cam-app button{border:0;color:#fff;background:#2a2a2a;border-radius:50%;width:52px;height:52px;font-size:22px;cursor:pointer;}
-#cam-app button.cam-disp{width:72px;height:72px;background:#fff;border:5px solid #c2773a;}
-#cam-app .cam-msg{position:absolute;top:12px;left:0;right:0;text-align:center;color:#ffd9a8;font:600 14px sans-serif;text-shadow:0 1px 3px #000;}
+/* La imagen ocupa toda la pantalla y los botones van encima (transparentes): en horizontal ya no se come media pantalla */
+#cam-app{position:fixed;inset:0;z-index:100002;background:#000;}
+#cam-app video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;}
+#cam-app .cam-bar{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;padding:14px 10px calc(18px + env(safe-area-inset-bottom));background:transparent;pointer-events:none;}
+#cam-app .cam-bar button{pointer-events:auto;}
+#cam-app button{border:0;color:#fff;cursor:pointer;}
+/* Botón de disparo como el de la cámara del móvil: círculo blanco con aro */
+#cam-app button.cam-disp{width:70px;height:70px;border-radius:50%;background:#fff;border:4px solid rgba(0,0,0,.25);box-shadow:0 0 0 4px #fff;padding:0;}
+#cam-app button.cam-disp:active{transform:scale(.92);background:#ddd;}
+#cam-app #cam-x{position:absolute;top:calc(10px + env(safe-area-inset-top));left:10px;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.45);font-size:18px;z-index:1;}
+#cam-app .cam-msg{position:absolute;top:calc(16px + env(safe-area-inset-top));left:56px;right:56px;text-align:center;color:#ffd9a8;font:600 14px sans-serif;text-shadow:0 1px 3px #000;}
+@media (orientation:landscape){
+  #cam-app .cam-bar{left:auto;top:0;right:0;bottom:0;padding:10px calc(18px + env(safe-area-inset-right)) 10px 10px;}
+}
 </style>
 <script id="js-camara-app">
 /* Cámara dentro de la app: no sale de la página, así que el móvil no la recarga y la foto llega siempre al chat */
@@ -16751,7 +16838,7 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
     cerrar();
     if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){ respaldo(); return; }
     var d=document.createElement('div'); d.id='cam-app';
-    d.innerHTML='<div class="cam-msg">📷 Encuadra y pulsa el botón blanco</div><video playsinline muted autoplay></video><div class="cam-bar"><button type="button" id="cam-x" aria-label="Cerrar">✕</button><button type="button" class="cam-disp" id="cam-d" aria-label="Hacer foto"></button><button type="button" id="cam-g" aria-label="Girar cámara">🔄</button></div>';
+    d.innerHTML='<div class="cam-msg">📷 Encuadra y pulsa el botón blanco</div><video playsinline muted autoplay></video><button type="button" id="cam-x" aria-label="Cerrar">✕</button><div class="cam-bar"><button type="button" class="cam-disp" id="cam-d" aria-label="Hacer foto"></button></div>';
     document.body.appendChild(d);
     var v=d.querySelector('video');
     async function iniciar(){
@@ -16761,7 +16848,6 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
       }catch(e){ console.warn('cámara:',e); try{ mostrarToast('⚠ No se pudo abrir la cámara (¿permiso denegado?). Pruebo con la de siempre…'); }catch(_){} respaldo(); return false; }
       return true; }
     d.querySelector('#cam-x').onclick=cerrar;
-    d.querySelector('#cam-g').onclick=function(){ cara=cara==='environment'?'user':'environment'; iniciar(); };
     d.querySelector('#cam-d').onclick=function(){
       if(!v.videoWidth){ return; }
       var W=v.videoWidth, H=v.videoHeight, k=Math.min(1,1600/Math.max(W,H)), c=document.createElement('canvas'); c.width=Math.round(W*k); c.height=Math.round(H*k);
