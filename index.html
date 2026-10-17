@@ -52,8 +52,11 @@
       appId: "09e3b925-67c1-473f-99ad-2823cec11758",
       notifyButton: { enable: false },
       allowLocalhostAsSecureOrigin: true,
-      serviceWorkerPath: "sw.js",
-      serviceWorkerParam: { scope: "/" }
+      // La app vive en /PREVISION/ (GitHub Pages): el service worker solo puede controlar su propia
+      // carpeta, así que el scope tiene que ser esa carpeta y no "/" (con "/" el registro fallaba
+      // y ningún dispositivo quedaba suscrito a los push).
+      serviceWorkerPath: location.pathname.replace(/[^/]*$/, '').slice(1) + "sw.js",
+      serviceWorkerParam: { scope: location.pathname.replace(/[^/]*$/, '') }
     });
   });
 </script>
@@ -7157,7 +7160,7 @@ function mostrarMovil(msg){
 // ── Notificaciones ──
 function pedirPermisoNotificaciones(forzado){
   try{
-    if(!forzado && localStorage.getItem('notifPedidas')==='1') return; // ya se preguntó una vez en este dispositivo
+    if(!forzado && localStorage.getItem('notifPedidas')==='1'){ _actualizarBotonNotif(); return; } // ya se preguntó una vez en este dispositivo: queda el botón para activarlas
     localStorage.setItem('notifPedidas','1');
     if(window.OneSignalDeferred){
       window.OneSignalDeferred.push(async function(OneSignal){
@@ -7170,6 +7173,73 @@ function pedirPermisoNotificaciones(forzado){
       Notification.requestPermission();
     }
   }catch(e){ console.warn('OneSignal permiso error:', e); }
+  _actualizarBotonNotif();
+}
+
+// Botón "Activar notificaciones": aparece mientras el dispositivo no esté suscrito al push, para
+// poder pedir el permiso con un toque (iPhone solo lo permite tras un toque del usuario).
+function _esIosSinInstalar(){
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const instalada = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  return ios && !instalada;
+}
+function _botonNotif(){
+  let b = document.getElementById('btn-activar-notif');
+  if(!b){
+    b = document.createElement('div');
+    b.id = 'btn-activar-notif';
+    b.style.cssText = 'display:none;position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:3000;padding:8px 14px;border-radius:20px;background:#c2773a;color:#fff;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.4);cursor:pointer;max-width:90vw;text-align:center;';
+    b.onclick = _activarNotifDesdeBoton;
+    document.body.appendChild(b);
+  }
+  return b;
+}
+function _actualizarBotonNotif(){
+  try{
+    const b = _botonNotif();
+    if(_esIosSinInstalar()){
+      b.textContent = '🔔 Para recibir avisos: Compartir → Añadir a pantalla de inicio';
+      b.style.display = 'block';
+      return;
+    }
+    if(!('Notification' in window)){ b.style.display = 'none'; return; }
+    if(Notification.permission === 'denied'){
+      b.textContent = '🔕 Notificaciones bloqueadas: actívalas en los ajustes del navegador';
+      b.style.display = 'block';
+      return;
+    }
+    if(Notification.permission === 'default'){
+      b.textContent = '🔔 Activar notificaciones';
+      b.style.display = 'block';
+      return;
+    }
+    // Permiso concedido: comprobar que OneSignal también tiene la suscripción activa
+    b.style.display = 'none';
+    if(window.OneSignalDeferred){
+      window.OneSignalDeferred.push(async function(OneSignal){
+        if(!OneSignal.User.PushSubscription.optedIn){
+          b.textContent = '🔔 Activar notificaciones';
+          b.style.display = 'block';
+        }
+      });
+    }
+  }catch(e){ console.warn('botón notificaciones:', e); }
+}
+function _activarNotifDesdeBoton(){
+  const b = _botonNotif();
+  if(_esIosSinInstalar() || ('Notification' in window && Notification.permission === 'denied')){ b.style.display = 'none'; return; }
+  try{
+    if(window.OneSignalDeferred){
+      window.OneSignalDeferred.push(async function(OneSignal){
+        if(Notification.permission === 'granted') await OneSignal.User.PushSubscription.optIn();
+        else await OneSignal.Notifications.requestPermission();
+        if(window._modoUsuario && window._modoUsuario !== 'admin') await OneSignal.User.addTag('grupo', window._modoUsuario);
+        _actualizarBotonNotif();
+      });
+    } else if('Notification' in window){
+      Notification.requestPermission().then(_actualizarBotonNotif);
+    }
+  }catch(e){ console.warn('OneSignal activar error:', e); }
 }
 
 function enviarNotificacionNavegador(titulo, cuerpo){
