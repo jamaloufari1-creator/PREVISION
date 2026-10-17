@@ -813,6 +813,7 @@ console.log('Supabase conectado correctamente');
           <button class="btn btn-sm" id="btn-gestion-rtf-top" data-solo="admin" title="Mostrar u ocultar a RTF el botón «Gestión de equipo y rotaciones» (solo admin)" style="color:var(--blue);border-color:var(--blue);" onclick="alternarGestionRtf()">🎱 Gestión para RTF</button>
           <button class="btn btn-sm" id="btn-cargas-top" title="Fijar el número oficial de cargas de cada grupo (solo admin)" data-solo="admin" style="color:var(--purple);border-color:var(--purple);" onclick="abrirCargasOficiales()">🔢 Cargas por grupo</button>
           
+          <button class="btn btn-sm" id="btn-probar-push" title="Comprueba paso a paso si este móvil puede recibir notificaciones" style="color:var(--blue);border-color:var(--blue);" onclick="_probarPush()">🔔 Probar notificaciones</button>
           <button class="btn btn-sm" id="btn-ayuda-top" style="color:var(--blue);border-color:var(--blue);font-weight:700;" onclick="abrirInstrucciones()">? Ayuda</button>
           <button class="btn btn-sm" data-solo="admin" title="Descargar una copia de seguridad de todos los datos" style="color:#e0a46f;border-color:#e0a46f;" onclick="exportarDatosJSON()">⬇ Guardar copia JSON</button>
           <button class="btn btn-sm" data-solo="admin" title="Restaurar datos desde una copia de seguridad" style="color:#c2773a;border-color:#c2773a;" onclick="document.getElementById('input-importar-json').click()">⬆ Restaurar copia JSON</button>
@@ -7555,7 +7556,62 @@ async function enviarNotificacionPush(gid, titulo, cuerpo){
       console.warn('OneSignal push:', err); window._osUltimoError = err;
       if(!window._osAvisado){ window._osAvisado = true; try{ mostrarToast('⚠ Notificación push no enviada: '+err.slice(0,120)); }catch(e){} }
     }
-  }catch(e){ console.warn('OneSignal push error:', e); window._osUltimoError = String(e); }
+  }catch(e){
+    console.warn('OneSignal push error:', e); window._osUltimoError = String(e);
+    if(!window._osAvisado){ window._osAvisado = true; try{ mostrarToast('⚠ Notificación push no enviada: '+String(e).slice(0,120)); }catch(_){} }
+  }
+}
+
+// Diagnóstico: comprueba paso a paso si ESTE móvil puede recibir push y se manda una prueba a sí mismo
+// (una al momento y otra a los 30 s, para probarla con la app cerrada).
+async function _probarPush(){
+  const prev = document.getElementById('modal-probar-push'); if(prev) prev.remove();
+  const m = document.createElement('div'); m.id = 'modal-probar-push';
+  m.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;padding:14px;';
+  m.innerHTML = '<div style="background:var(--s1,#12151c);border:1px solid var(--border2);border-radius:14px;padding:16px;width:min(520px,96vw);max-height:90vh;overflow:auto;color:var(--text);font-size:13px;">'
+    + '<div style="font-weight:700;font-size:15px;margin-bottom:10px;">🔔 Prueba de notificaciones</div><div id="pp-lista" style="display:flex;flex-direction:column;gap:6px;font-family:IBM Plex Mono,monospace;"></div>'
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;"><button class="btn btn-sm" id="pp-copiar">📋 Copiar</button><button class="btn btn-sm" onclick="this.closest(\'#modal-probar-push\').remove()">Cerrar</button></div></div>';
+  document.body.appendChild(m);
+  const lista = m.querySelector('#pp-lista'), lineas = [];
+  function paso(ok, txt){ lineas.push((ok===true?'✅ ':ok===false?'❌ ':'ℹ️ ')+txt); const d=document.createElement('div'); d.textContent=lineas[lineas.length-1]; d.style.color = ok===false?'#f0a39d':ok===true?'#bfe8c8':'#d9b79a'; lista.appendChild(d); }
+  m.querySelector('#pp-copiar').onclick = ()=>{ try{ navigator.clipboard.writeText(lineas.join('\n')); mostrarToast('Copiado'); }catch(e){} };
+  const espera = (p,ms)=>Promise.race([p,new Promise(r=>setTimeout(()=>r('__tiempo__'),ms))]);
+
+  paso(null, 'Navegador: '+navigator.userAgent.replace(/^Mozilla\/5\.0 /,'').slice(0,90));
+  const instalada = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  paso(null, 'App instalada en pantalla de inicio: '+(instalada?'sí':'no'));
+  if(!('Notification' in window)){ paso(false,'Este navegador no admite notificaciones'+(/iphone|ipad/i.test(navigator.userAgent)?' (en iPhone hay que añadir la app a la pantalla de inicio y abrirla desde ahí)':'')); return; }
+  paso(Notification.permission==='granted', 'Permiso del navegador: '+Notification.permission);
+  try{
+    const regs = await navigator.serviceWorker.getRegistrations();
+    paso(regs.length>0, 'Service worker: '+(regs.length? regs.map(r=>r.scope.replace(location.origin,'')+' ('+((r.active&&r.active.scriptURL)||'').split('/').pop()+')').join(', ') : 'ninguno'));
+  }catch(e){ paso(false,'Service worker: '+e); }
+  if(!window.OneSignalDeferred){ paso(false,'OneSignal no está cargado'); return; }
+  const OS = await espera(new Promise(r=>window.OneSignalDeferred.push(os=>r(os))), 10000);
+  if(OS==='__tiempo__'){ paso(false,'OneSignal no ha arrancado en 10 s (¿bloqueador de anuncios o sin conexión?)'); return; }
+  const sub = OS.User.PushSubscription;
+  paso(!!sub.optedIn, 'Suscrito en OneSignal: '+(sub.optedIn?'sí':'no'));
+  paso(!!sub.id, 'ID de suscripción: '+(sub.id||'ninguno'));
+  paso(!!sub.token, 'Token del navegador: '+(sub.token?'sí':'no'));
+  try{ const tags = await OS.User.getTags(); paso(!!(tags&&tags.grupo), 'Etiqueta grupo: '+((tags&&tags.grupo)||'ninguna')+(window._modoUsuario?' · ahora estás como '+window._modoUsuario:'')); }catch(e){ paso(false,'Etiquetas: '+e); }
+  if(!sub.id || !sub.optedIn){
+    paso(false,'Este móvil no está suscrito. Pulsa «Activar notificaciones», acepta y vuelve a probar.');
+    if(Notification.permission!=='denied'){ try{ if(Notification.permission==='granted') await OS.User.PushSubscription.optIn(); else await OS.Notifications.requestPermission(); }catch(e){} }
+    return;
+  }
+  async function mandar(extra, nombre){
+    try{
+      const r = await fetch('https://api.onesignal.com/notifications?c=push', { method:'POST',
+        headers:{ 'Content-Type':'application/json; charset=utf-8', 'Authorization':(/^os_v2_/.test(_OS_API_KEY)?'Key ':'Basic ')+_OS_API_KEY },
+        body: JSON.stringify(Object.assign({ app_id:_OS_APP_ID, target_channel:'push', include_subscription_ids:[sub.id],
+          headings:{en:'Prueba ML2',es:'Prueba ML2'}, contents:{en:nombre,es:nombre}, url:'https://jamaloufari1-creator.github.io/PREVISION/', priority:10, ttl:3600 }, extra)) });
+      let t = ''; try{ t = await r.text(); }catch(e){}
+      paso(r.ok && !/errors/.test(t), nombre+': HTTP '+r.status+' '+t.slice(0,200));
+    }catch(e){ paso(false, nombre+': no se pudo llamar a OneSignal ('+e+')'); }
+  }
+  await mandar({}, 'Prueba al momento');
+  await mandar({ send_after: new Date(Date.now()+30000).toISOString() }, 'Prueba a los 30 s');
+  paso(null, 'Ahora cierra la app del todo. En 30 s debería llegar «Prueba a los 30 s». Si no llega, copia esto y mándamelo.');
 }
 
 // ── Recordatorio ──
