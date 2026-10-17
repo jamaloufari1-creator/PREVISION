@@ -16762,8 +16762,15 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
 <style id="css-persiana-ancha">
 /* Persiana: como antes de ancho; el nombre de la carga en UNA línea (se ve el inicio) y se lee entero al pasar el ratón o deslizar el dedo */
 .persiana-overlay [id^="ultimo-coche-persiana-"] table{table-layout:fixed;width:100%;}
-.persiana-overlay [id^="ultimo-coche-persiana-"] table th:first-child,.persiana-overlay [id^="ultimo-coche-persiana-"] table td:first-child{width:46%;max-width:0;white-space:nowrap !important;overflow-x:auto;overflow-y:hidden;text-overflow:ellipsis;touch-action:pan-x pan-y;cursor:default;}
-.persiana-overlay [id^="ultimo-coche-persiana-"] table th:nth-child(2),.persiana-overlay [id^="ultimo-coche-persiana-"] table td:nth-child(2){width:15%;}
+.persiana-overlay [id^="ultimo-coche-persiana-"] table th:first-child,.persiana-overlay [id^="ultimo-coche-persiana-"] table td:first-child{width:34%;max-width:0;white-space:nowrap !important;overflow-x:auto;overflow-y:hidden;text-overflow:ellipsis;touch-action:pan-x pan-y;cursor:default;}
+.persiana-overlay [id^="ultimo-coche-persiana-"] table th:nth-child(2),.persiana-overlay [id^="ultimo-coche-persiana-"] table td:nth-child(2){width:11%;}
+/* Columnas de números (Últ. ant. / Primero / Último): cabecera en una línea, sin montarse, y algo de aire entre números */
+.persiana-overlay [id^="ultimo-coche-persiana-"] table th:nth-child(n+3){letter-spacing:.02em !important;white-space:nowrap;overflow:hidden;text-overflow:clip;text-align:right;}
+.persiana-overlay [id^="ultimo-coche-persiana-"] table th:nth-child(n+3):not(:last-child),.persiana-overlay [id^="ultimo-coche-persiana-"] table td:nth-child(n+3):not(:last-child){padding-left:8px !important;}
+.persiana-overlay .persiana-content{max-width:520px !important;}
+/* En pantallas estrechas no se aprietan las columnas: la tabla se desliza a los lados */
+.persiana-overlay [id^="ultimo-coche-persiana-"] table{min-width:440px;}
+.persiana-overlay [id^="ultimo-coche-persiana-"]{overflow-x:auto !important;}
 </style>
 <script id="js-persiana-ancha">
 (function(){
