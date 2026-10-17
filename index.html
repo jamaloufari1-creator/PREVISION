@@ -475,7 +475,8 @@ body{font-family:IBM Plex Sans,sans-serif;background:var(--bg);color:var(--text)
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     try {
-      const _sb = supabase.createClient('https://rvcechmfvkghggfnfcpv.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2Y2VjaG1mdmtnaGdnZm5mY3B2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MzcxNDQsImV4cCI6MjA5NDExMzE0NH0.ufXnUjoUBDOfjeUwsqoovycViOxDzx_0dF9gpLLql-M');
+      window._sbKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2Y2VjaG1mdmtnaGdnZm5mY3B2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MzcxNDQsImV4cCI6MjA5NDExMzE0NH0.ufXnUjoUBDOfjeUwsqoovycViOxDzx_0dF9gpLLql-M';
+      const _sb = supabase.createClient('https://rvcechmfvkghggfnfcpv.supabase.co', window._sbKey);
       window._sbClient = _sb; // exponer para el login de portavoces/supervisor
 
       // Guardar estado
@@ -12136,7 +12137,9 @@ function momentoCierre(turno, fechaRefStr, horaCierre){
 // que devuelve el propio servidor de Supabase en la cabecera "Date" de cualquier respuesta.
 async function _sincronizarRelojServidor(){
   try{
-    const resp = await fetch('https://rvcechmfvkghggfnfcpv.supabase.co/rest/v1/', { method:'HEAD', cache:'no-store' });
+    // Con la clave pública: sin ella Supabase responde 401 y la consola se llena de errores rojos cada 5 min
+    const k = window._sbKey; if(!k) return;
+    const resp = await fetch('https://rvcechmfvkghggfnfcpv.supabase.co/rest/v1/mensajes?select=id&limit=1', { method:'HEAD', cache:'no-store', headers:{ apikey:k, Authorization:'Bearer '+k } });
     const fechaHeader = resp.headers.get('date');
     if(fechaHeader){
       const serverMs = new Date(fechaHeader).getTime();
@@ -12144,7 +12147,7 @@ async function _sincronizarRelojServidor(){
     }
   }catch(e){ /* si falla, seguimos con el reloj local tal cual */ }
 }
-_sincronizarRelojServidor();
+setTimeout(_sincronizarRelojServidor, 3000);
 setInterval(_sincronizarRelojServidor, 5*60*1000);
 
 function comprobarCierreTurno(){
