@@ -904,7 +904,7 @@ console.log('Supabase conectado correctamente');
     </div>
 
 
-      <div id="fila-resumen" style="display:flex;align-items:flex-start;gap:12px;background:var(--bg);padding:10px 20px 6px;flex-shrink:0;"><div class="tramo-resumen" id="tramo-resumen-embed" style="flex:1;min-width:0;"></div><div id="presencia-panel" style="display:none;"><div id="presencia-lista"></div></div><div id="invitados-tile" class="tramo-stat" onclick="abrirInvitadosHoy()" title="Dispositivos distintos que han entrado hoy como invitado · pulsa para ver el detalle" style="cursor:pointer;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1px;min-width:96px;"><div class="tramo-stat-label" id="inv-etq" style="font-family:Oswald,sans-serif;font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--muted2);">INVITADOS</div><div class="tramo-stat-val" id="inv-num" style="color:var(--blue);text-align:center;">0</div></div><div id="acciones-resumen"></div></div>
+      <div id="fila-resumen" style="display:flex;align-items:flex-start;gap:12px;background:var(--bg);padding:10px 20px 6px;flex-shrink:0;"><div class="tramo-resumen" id="tramo-resumen-embed" style="flex:1;min-width:0;"></div><div id="presencia-panel" style="display:none;"><div id="presencia-lista"></div></div><div id="invitados-tile" class="tramo-stat" onclick="abrirInvitadosHoy()" title="Dispositivos distintos que han entrado hoy como invitado · pulsa para ver el detalle" style="cursor:pointer;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1px;min-width:96px;"><div class="tramo-stat-label" id="inv-etq" style="font-family:Oswald,sans-serif;font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--muted2);">INVITADOS</div><div class="tramo-stat-val" id="inv-num" style="color:var(--blue);text-align:center;">0</div></div><div id="todos-tile" class="tramo-stat" onclick="abrirTodosHoy()" title="Solo admin: dispositivos distintos que han entrado en este turno (todos los grupos, roles, supervisores e invitados) · pulsa para ver el detalle" style="display:none;cursor:pointer;flex:0 0 auto;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1px;min-width:96px;"><div class="tramo-stat-label" style="font-family:Oswald,sans-serif;font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--muted2);">TODOS</div><div class="tramo-stat-val" id="todos-num" style="color:var(--blue);text-align:center;">0</div></div><div id="acciones-resumen"></div></div>
           <div id="barra-equipos" style="padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:8px;background:var(--s1);flex-shrink:0;">
       <div id="barra-eq-centro" style="display:flex;align-items:center;justify-content:center;gap:10px;flex:1 1 auto;min-width:0;">
         <div style="display:flex;align-items:center;gap:8px;margin-right:0;display:none;flex-shrink:0;">
@@ -5621,8 +5621,15 @@ function _invTurnosRecientes(){
   return [c,a,b].map(x=>({turno:x.turno, fecha:x.fecha, id:x.fecha+':'+x.turno}));
 }
 function _procesarFilasInvitados(rows){
-  const rec=_invTurnosRecientes(), ids=rec.map(x=>x.id); let borr = 0; const lista = [];
+  const rec=_invTurnosRecientes(), ids=rec.map(x=>x.id); let borr = 0; const lista = [], acc = [];
   (rows||[]).forEach(p=>{
+    if(p && typeof p.gid==='string' && p.gid.indexOf('acc:')===0){
+      const pa=p.gid.split(':'), sa=pa[1]+':'+pa[2];
+      if(pa.length!==4 || ids.indexOf(sa)<0){ if(borr<20 && window._sbPresencia){ borr++; Promise.resolve(window._sbPresencia.borrar(p.gid)).catch(()=>{}); } return; }
+      let da = {}; try{ da = JSON.parse(p.label) || {}; }catch(e){}
+      acc.push({k:p.gid, r:da.r||'?', h:da.h||p.ts, ts:p.ts, sid:sa});
+      return;
+    }
     if(!p || typeof p.gid!=='string' || p.gid.indexOf('inv:')!==0) return;
     const pt=p.gid.split(':'), sid=pt[1]+':'+pt[2];
     if(pt.length!==4 || ids.indexOf(sid)<0){ if(borr<20 && window._sbPresencia){ borr++; Promise.resolve(window._sbPresencia.borrar(p.gid)).catch(()=>{}); } return; }
@@ -5630,6 +5637,7 @@ function _procesarFilasInvitados(rows){
     lista.push({k:p.gid, g:d.g||null, h:d.h||p.ts, ts:p.ts, sid:sid});
   });
   window._invDia = lista;
+  window._accDia = acc;
   try{ _renderInvitadosTile(); }catch(e){}
 }
 function _presenciaPublicarTurno(){
@@ -5640,6 +5648,17 @@ function _presenciaPublicarTurno(){
     if(me && window._sbPresencia){
       Promise.resolve(window._sbPresencia.guardar(me.key, {ts:Date.now(), label:'sup', escribiendo:false})).catch(()=>{});
       window._presKeyPub = me.key;
+    }
+    // Registro de entradas de TODOS (para el marcador del admin): una fila por dispositivo, rol y turno que
+    // no se borra al salir. Los invitados ya tienen la suya ("inv:"), así que no se duplican.
+    const _rolAcc = window._modoUsuario;
+    if(_rolAcc && _rolAcc !== 'admin' && _rolAcc !== 'invitado' && window._sbPresencia && (!window._accUltimo || Date.now()-window._accUltimo > 30000 || window._accRolUlt !== _rolAcc)){
+      window._accUltimo = Date.now(); window._accRolUlt = _rolAcc;
+      const _tc=_invTurnoActual(), hoy=_tc.fecha+':'+_tc.turno;
+      const rolK = _rolAcc==='supervisor' ? 'sup-'+(window._perfilSupervisor||'rtf') : _rolAcc;
+      let h = 0;
+      try{ h = +localStorage.getItem('acc_h_'+hoy+'_'+rolK) || 0; if(!h){ h = Date.now(); localStorage.setItem('acc_h_'+hoy+'_'+rolK, String(h)); } }catch(e){ h = Date.now(); }
+      Promise.resolve(window._sbPresencia.guardar('acc:'+hoy+':'+_idDispositivoInv()+'-'+rolK.replace(/:/g,''), {ts:Date.now(), label:JSON.stringify({r:rolK, h}), escribiendo:false})).catch(()=>{});
     }
     if(window._modoUsuario === 'invitado' && window._sbPresencia){
       const _tc=_invTurnoActual(), hoy=_tc.fecha+':'+_tc.turno; let h = 0;
@@ -5707,8 +5726,51 @@ function _renderPresenciaPanel(){
 }
 function _invActuales(){ const c=_invTurnoActual(), id=c.fecha+':'+c.turno; return (window._invDia||[]).filter(x=>x.sid===id); }
 function _renderInvitadosTile(){
+  const tt = document.getElementById('todos-tile');
+  if(tt){
+    const ver = esAdminInicio();
+    tt.style.display = ver ? 'flex' : 'none';
+    const tn = document.getElementById('todos-num'); if(ver && tn) tn.textContent = _todosActuales().length;
+  }
   const num = document.getElementById('inv-num'); if(!num) return;
   num.textContent = _invActuales().length;
+}
+// Marcador TODOS (solo admin): entradas de este turno de grupos, roles y supervisores + invitados
+function _todosActuales(){
+  const c=_invTurnoActual(), id=c.fecha+':'+c.turno;
+  return (window._accDia||[]).filter(x=>x.sid===id).concat(_invActuales().map(x=>({k:x.k, r:'invitado', h:x.h, ts:x.ts, sid:x.sid})));
+}
+function _nombreRolAcc(r){
+  if(r==='invitado') return 'Invitados';
+  if(/^g\d+$/.test(r)) return 'G'+((appConfig.grupos&&appConfig.grupos[r])||r.slice(1));
+  if(r.indexOf('sup-')===0){ try{ return nombrePerfil(r.slice(4)); }catch(e){ return 'Supervisor'; } }
+  try{ return String(rolVisorLabel(r)||r).replace(/^[^A-Za-zÁÉÍÓÚÑ0-9]+/,'').trim(); }catch(e){ return r; }
+}
+function abrirTodosHoy(){
+  if(!esAdminInicio()) return;
+  const prev = document.getElementById('modal-todos-hoy'); if(prev) prev.remove();
+  const ahora = Date.now(), lista = _todosActuales();
+  const NT = {manana:'🌅 Mañana', tarde:'🌆 Tarde', noche:'🌙 Noche'};
+  const hh = ms => { const d = new Date(ms), p = n=>String(n).padStart(2,'0'); return p(d.getHours())+':'+p(d.getMinutes()); };
+  const grupos = {};
+  lista.forEach(x=>{ (grupos[x.r] = grupos[x.r] || []).push(x); });
+  const filas = Object.keys(grupos).sort((a,b)=> grupos[b].length - grupos[a].length || _nombreRolAcc(a).localeCompare(_nombreRolAcc(b))).map(k=>{
+    const arr = grupos[k].sort((a,b)=>a.h-b.h);
+    const chips = arr.map(x=>{ const o = ahora-x.ts < 45000; return `<span style="font-family:IBM Plex Mono,monospace;font-size:11px;padding:2px 7px;border-radius:999px;border:1px solid ${o?'var(--green)':'var(--border2)'};color:${o?'var(--green)':'var(--muted2)'};">${hh(x.h)}</span>`; }).join(' ');
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border2);border-radius:12px;background:var(--s2);">
+      <div style="flex:0 0 auto;min-width:46px;text-align:center;font-family:Oswald,sans-serif;font-size:28px;font-weight:700;color:var(--blue);line-height:1;">${arr.length}</div>
+      <div style="flex:1;min-width:0;"><div style="font-family:Oswald,sans-serif;font-size:14px;letter-spacing:.06em;color:var(--text);">${_nombreRolAcc(k)}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;">${chips}</div></div></div>`;
+  }).join('');
+  const m = document.createElement('div'); m.id = 'modal-todos-hoy';
+  m.style.cssText = 'position:fixed;inset:0;z-index:99996;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:12px;';
+  m.onclick = ev=>{ if(ev.target===m) m.remove(); };
+  m.innerHTML = `<div style="background:var(--s1,#12151c);color:var(--text,#fff);border:1px solid var(--border2);border-radius:16px;padding:16px;width:min(460px,96vw);max-height:88vh;overflow:auto;">
+    <div style="font-family:Oswald,sans-serif;font-size:18px;font-weight:700;letter-spacing:.08em;color:var(--blue);text-align:center;">👥 TODOS · ${NT[_invTurnoActual().turno]} EN VIVO</div>
+    <div style="font-family:IBM Plex Mono,monospace;font-size:11px;color:var(--muted2);text-align:center;margin:4px 0 12px;">${lista.length} entrada${lista.length===1?'':'s'} en este turno (un dispositivo por grupo o rol) · la hora es la de la primera entrada · en verde, conectados ahora</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">${filas || '<div style="color:var(--muted2);text-align:center;padding:14px;">En este turno no ha entrado nadie todavía.</div>'}</div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px;"><button class="btn btn-sm" onclick="document.getElementById('modal-todos-hoy').remove()">Cerrar</button></div></div>`;
+  document.body.appendChild(m);
 }
 function _invAlternarTurno(i){ const e=document.getElementById('inv-turno-'+i); if(e) e.style.display = (e.style.display==='none') ? 'flex' : 'none'; const f=document.getElementById('inv-flecha-'+i); if(f) f.textContent = (e && e.style.display!=='none') ? '▴' : '▾'; }
 function abrirInvitadosHoy(){
@@ -16833,6 +16895,17 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
   });
 })();
 </script>
+<style id="css-todos-tile">
+/* Marcador TODOS del admin: mismo marco que INVITADOS, justo a su lado */
+#todos-tile{position:relative;--c:12px;--marco:rgba(194,119,58,.7);border:0 !important;border-radius:0 !important;box-shadow:none !important;background:linear-gradient(135deg,rgba(194,119,58,.16),rgba(0,0,0,.35)) !important;align-self:stretch;padding:0 12px !important;
+  clip-path:polygon(0 0,calc(100% - var(--c)) 0,100% var(--c),100% 100%,var(--c) 100%,0 calc(100% - var(--c))) !important;}
+#todos-tile::before{content:"";position:absolute;inset:0;pointer-events:none;background:var(--marco);z-index:2;
+  clip-path:polygon(evenodd,0 0,calc(100% - var(--c)) 0,100% var(--c),100% 100%,var(--c) 100%,0 calc(100% - var(--c)),0 0,
+   2px 2px,calc(100% - var(--c) - .83px) 2px,calc(100% - 2px) calc(var(--c) + .83px),calc(100% - 2px) calc(100% - 2px),calc(var(--c) + .83px) calc(100% - 2px),2px calc(100% - var(--c) - .83px),2px 2px);}
+#todos-tile .tramo-stat-label{font-family:Michroma,Oswald,sans-serif !important;font-size:8px !important;letter-spacing:.14em !important;white-space:nowrap;}
+#fila-resumen #todos-tile{margin-left:8px !important;margin-right:auto !important;width:108px;min-width:108px !important;box-sizing:border-box;}
+#fila-resumen #invitados-tile:has(+ #todos-tile[style*="flex"]){margin-right:0 !important;}
+</style>
 <style id="css-camara-app">
 /* La imagen ocupa toda la pantalla y los botones van encima (transparentes): en horizontal ya no se come media pantalla */
 #cam-app{position:fixed;inset:0;z-index:100002;background:#000;}
