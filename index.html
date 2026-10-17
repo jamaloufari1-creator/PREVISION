@@ -6123,7 +6123,7 @@ function _burbujaContenidoHtml(texto, msgId, msgGid){
   }
   if(typeof texto==='string' && texto.indexOf(MARCA_FOTO)===0){
     const url = texto.slice(MARCA_FOTO.length);
-    return `<img src="${url}" loading="lazy" onclick="window.open('${url}','_blank')" style="max-width:100%;max-height:220px;border-radius:8px;cursor:pointer;display:block;margin-top:2px;object-fit:cover;">`;
+    return `<img src="${url}" loading="lazy" onclick="_verFoto(this)" style="max-width:100%;max-height:220px;border-radius:8px;cursor:pointer;display:block;margin-top:2px;object-fit:cover;">`;
   }
   return `<div style="font-size:13px;color:#dce3ed;word-break:break-word;">${texto}</div>`;
 }
@@ -6170,27 +6170,64 @@ function validarDefectoReparado(msgId, remitenteGid, defTexto, btn){
   mostrarToast('✅ Marcado como reparado');
 }
 
+// Reduce la foto a JPEG (las del móvil pesan varios MB y algunas vienen en HEIC): sube antes y no la rechaza el servidor
+function _fotoReducida(file, lado, calidad){
+  return new Promise((res)=>{
+    const u = URL.createObjectURL(file), img = new Image();
+    img.onload = ()=>{
+      try{
+        const k = Math.min(1, lado/Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth*k); c.height = Math.round(img.naturalHeight*k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(u);
+        c.toBlob(b=>res(b ? {blob:b, canvas:c} : null), 'image/jpeg', calidad);
+      }catch(e){ URL.revokeObjectURL(u); res(null); }
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(u); res(null); };
+    img.src = u;
+  });
+}
+function _conTiempo(p, ms){ return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('tarda demasiado, mala cobertura')), ms))]); }
+
 async function movilFotoSeleccionada(event){
   mostrarToast('📸 Foto detectada, procesando…');
   const file = event.target.files && event.target.files[0];
   event.target.value = ''; // permitir elegir la misma foto otra vez después
   if(!file){ mostrarToast('⚠ No se detectó ninguna foto, prueba otra vez'); return; }
-  if(!window._sbClient){ mostrarToast('⚠ Sin conexión con el servidor'); return; }
-  mostrarToast('📤 Subiendo foto…');
-  try{
-    const mi = window._modoUsuario||grupoActivo;
-    const ext = (file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jpg';
-    const path = mi+'/'+Date.now()+'_'+Math.random().toString(36).slice(2)+'.'+ext;
-    const { error: upErr } = await window._sbClient.storage.from('chat-fotos').upload(path, file, { upsert:false, contentType: file.type||'image/jpeg' });
-    if(upErr){ console.warn('Subida foto:', upErr); mostrarToast('⚠ No se pudo subir la foto: '+(upErr.message||upErr.error||'error del servidor')); return; }
-    const { data: pub } = window._sbClient.storage.from('chat-fotos').getPublicUrl(path);
-    const url = pub && pub.publicUrl;
-    if(!url){ mostrarToast('⚠ No se pudo obtener el enlace de la foto'); return; }
-    movilEnviarFoto(url);
-  }catch(e){
-    console.warn('Foto:', e);
-    mostrarToast('⚠ Error al enviar la foto');
+  const red = await _fotoReducida(file, 1600, .8);
+  const sube = red ? new File([red.blob], 'foto.jpg', {type:'image/jpeg'}) : file;
+  let motivo = '';
+  if(window._sbClient){
+    mostrarToast('📤 Subiendo foto…');
+    try{
+      const mi = window._modoUsuario||grupoActivo;
+      const ext = red ? 'jpg' : ((file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jpg');
+      const path = mi+'/'+Date.now()+'_'+Math.random().toString(36).slice(2)+'.'+ext;
+      const { error: upErr } = await _conTiempo(window._sbClient.storage.from('chat-fotos').upload(path, sube, { upsert:false, contentType: sube.type||'image/jpeg' }), 30000);
+      if(upErr) throw upErr;
+      const { data: pub } = window._sbClient.storage.from('chat-fotos').getPublicUrl(path);
+      if(pub && pub.publicUrl){ movilEnviarFoto(pub.publicUrl); return; }
+      motivo = 'sin enlace';
+    }catch(e){ console.warn('Subida foto:', e); motivo = (e && (e.message||e.error)) || 'error del servidor'; }
+  } else motivo = 'sin conexión con el servidor';
+  // Si el almacén de fotos falla, la foto va pequeña dentro del propio mensaje, así llega igual
+  if(red){
+    const s = Math.min(1, 900/Math.max(red.canvas.width, red.canvas.height));
+    const c = document.createElement('canvas'); c.width = Math.round(red.canvas.width*s); c.height = Math.round(red.canvas.height*s);
+    c.getContext('2d').drawImage(red.canvas, 0, 0, c.width, c.height);
+    let q = .6, dato = c.toDataURL('image/jpeg', q);
+    while(dato.length > 140000 && q > .3){ q -= .1; dato = c.toDataURL('image/jpeg', q); }
+    if(dato.indexOf('data:image/jpeg')===0){ movilEnviarFoto(dato); return; }
   }
+  mostrarToast('⚠ No se pudo subir la foto: '+motivo);
+}
+
+function _verFoto(img){
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;';
+  d.innerHTML = '<img style="max-width:100%;max-height:100%;object-fit:contain;">';
+  d.firstChild.src = img.src; d.onclick = ()=>d.remove();
+  document.body.appendChild(d);
 }
 
 function movilEnviarFoto(url){
