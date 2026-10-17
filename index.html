@@ -7515,28 +7515,47 @@ function enviarNotificacionNavegador(titulo, cuerpo){
 const _OS_APP_ID = '09e3b925-67c1-473f-99ad-2823cec11758';
 const _OS_API_KEY = 'os_v2_app_bhr3sjlhyfdt7gnnfar45qixldcnspyilsbu3mmbzqfjvkh5pfx3lsrwgbiakown4lgwgyiibnmmdld2uda2bwijk6gdhdf72frfopa';
 
+// Envío por la API actual de OneSignal. La clave nueva (os_v2_app_…) solo vale con "Authorization: Key …"
+// en api.onesignal.com; con la llamada antigua ("Basic …" en onesignal.com/api/v1) OneSignal la rechazaba
+// y no salía ninguna notificación. Alta prioridad para que el móvil la entregue aunque la app esté cerrada.
 async function enviarNotificacionPush(gid, titulo, cuerpo){
   gid = _destSupBase(gid);
-  try{
-    const destino = gid === 'todos'
-      ? { included_segments: ['Total Subscriptions'] }
-      : { filters: [{ field:'tag', key:'grupo', relation:'=', value: gid }] };
-    await fetch('https://onesignal.com/api/v1/notifications', {
+  const base = 'https://jamaloufari1-creator.github.io/PREVISION/';
+  const cuerpoBase = {
+    app_id: _OS_APP_ID,
+    target_channel: 'push',
+    headings: { en: titulo, es: titulo },
+    contents: { en: cuerpo, es: cuerpo },
+    url: base,
+    chrome_web_icon: base+'icon-192.png',
+    chrome_web_badge: base+'icon-192.png',
+    firefox_icon: base+'icon-192.png',
+    priority: 10,
+    ttl: 86400
+  };
+  async function enviar(destino){
+    const r = await fetch('https://api.onesignal.com/notifications?c=push', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Basic ' + _OS_API_KEY
-      },
-      body: JSON.stringify({
-        app_id: _OS_APP_ID,
-        ...destino,
-        headings: { en: titulo, es: titulo },
-        contents: { en: cuerpo, es: cuerpo },
-        url: 'https://jamaloufari1-creator.github.io/PREVISION/',
-        web_push_topic: 'ml2-mensaje'
-      })
+      headers: { 'Content-Type': 'application/json; charset=utf-8', 'Authorization': (/^os_v2_/.test(_OS_API_KEY)?'Key ':'Basic ') + _OS_API_KEY },
+      body: JSON.stringify(Object.assign({}, cuerpoBase, destino))
     });
-  }catch(e){ console.warn('OneSignal push error:', e); }
+    let j = null; try{ j = await r.json(); }catch(e){}
+    return { ok: r.ok && !(j && j.errors && !j.id), j, status: r.status };
+  }
+  try{
+    let res;
+    if(gid === 'todos'){
+      res = await enviar({ included_segments: ['Total Subscriptions'] });
+      if(!res.ok) res = await enviar({ included_segments: ['Subscribed Users'] });
+    } else {
+      res = await enviar({ filters: [{ field:'tag', key:'grupo', relation:'=', value: gid }] });
+    }
+    if(!res.ok){
+      const err = (res.j && res.j.errors) ? JSON.stringify(res.j.errors) : ('HTTP '+res.status);
+      console.warn('OneSignal push:', err); window._osUltimoError = err;
+      if(!window._osAvisado){ window._osAvisado = true; try{ mostrarToast('⚠ Notificación push no enviada: '+err.slice(0,120)); }catch(e){} }
+    }
+  }catch(e){ console.warn('OneSignal push error:', e); window._osUltimoError = String(e); }
 }
 
 // ── Recordatorio ──
