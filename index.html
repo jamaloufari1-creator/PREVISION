@@ -15429,6 +15429,7 @@ window._cuMotor=function(dur,modo,fuerza,_ctxExt){ try{
     function proceder(){
       if(!window._cuSplashActivo) return; window._cuSplashActivo=false;
       try{ if(window._cuIdle){ window._cuIdle.stop(.6); window._cuIdle=null; } }catch(e){}
+      try{ if(window._cuParaSoldML2) window._cuParaSoldML2(); if(window._cuParaFirma) window._cuParaFirma(); }catch(e){}
       d.classList.add('fuera'); document.documentElement.classList.remove('cu-pre'); setTimeout(function(){ d.remove(); },550);
       setTimeout(function(){ try{ var p=document.getElementById('pantalla-inicio'); if(p && getComputedStyle(p).display!=='none' && !window._modoUsuario) window._cuproLlega('bienvenida'); }catch(e){} },500);
     }
@@ -17067,7 +17068,7 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
   function reset(){ pc.clearRect(0,0,paint.width,paint.height); estela=[]; chispas=[]; ci=0; pi=0; fase='dibuja'; alfa=1; tFase=performance.now(); }
   function cabeza(){ var s=RUTA[ci]; return s?{x:s.p[pi*2],y:s.p[pi*2+1],r:s.r}:null; }
   function avanza(){
-    var _n=performance.now(), _dt=c._tu?Math.min(60,_n-c._tu):16.7; c._tu=_n; c._ac=(c._ac||0)+_dt*0.17; var NP=Math.floor(c._ac); c._ac-=NP;
+    var _n=performance.now(), _dt=c._tu?Math.min(60,_n-c._tu):16.7; c._tu=_n; c._ac=(c._ac||0)+_dt*0.45; var NP=Math.floor(c._ac); c._ac-=NP;
     for(var n=0;n<NP;n++){
       var s=RUTA[ci]; if(!s){ fase='enfria'; tFase=performance.now(); return; }
       var x=s.p[pi*2], y=s.p[pi*2+1];
@@ -17077,8 +17078,12 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
       pi++; if(pi*2>=s.p.length){ ci++; pi=0; fase=ci>=RUTA.length?'enfria':'dibuja'; if(fase==='enfria') tFase=performance.now(); }
     }
   }
+  function paraSold(){ if(c._sndH){ try{ c._sndH.stop(); }catch(e){} c._sndH=null; } }
+  window._cuParaSoldML2=paraSold;
   function frame(now){
-    if(!document.body.contains(c)) return;
+    // Al entrar en la app (botón o toque) el inicio desaparece: cortar ya el sonido de soldadura
+    var sp=document.getElementById('cu-splash');
+    if(!document.body.contains(c)||!sp||sp.classList.contains('fuera')){ paraSold(); return; }
     requestAnimationFrame(frame);
     if(!logo.complete||!logo.naturalWidth) return;
     ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,c.width,c.height);
@@ -17166,9 +17171,10 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
     for(var j=sparks.length-1;j>=0;j--){ var s=sparks[j]; s.x+=s.vx*.6; s.y+=s.vy*.6; s.vy+=.07; s.v-=.05; if(s.v<=0){ sparks.splice(j,1); continue; } ctx.fillStyle='rgba(255,'+Math.round(170+60*s.v)+',110,'+s.v+')'; ctx.fillRect(s.x*k,s.y*k,1.8*k,1.8*k); }
     ctx.globalCompositeOperation='source-over';
   }
-  function visible(){ return !!document.getElementById('cu-splash'); }
+  function visible(){ var sp=document.getElementById('cu-splash'); return !!sp && !sp.classList.contains('fuera'); }
   var vis=false, tVis=0, arrancado=false;
   var snd=null; function paraSnd(){ if(snd){ try{ snd.stop(); }catch(e){} snd=null; } }
+  window._cuParaFirma=function(){ activo=false; cancelAnimationFrame(raf); paraSnd(); };
   function arranca(){ arrancado=true; wrap.style.display='block'; reset(); paraSnd(); if(!reducido){ try{ snd=window._cuSoldSonido?window._cuSoldSonido(null,true):null; }catch(e){} } if(reducido){ pintaTodo(); } activo=true; cancelAnimationFrame(raf); raf=requestAnimationFrame(frame); }
   setInterval(function(){
     var v=visible(), sp=document.getElementById('cu-splash');
