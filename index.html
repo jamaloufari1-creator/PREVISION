@@ -17070,7 +17070,7 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
   function reset(){ pc.clearRect(0,0,paint.width,paint.height); estela=[]; chispas=[]; ci=0; pi=0; fase='dibuja'; alfa=1; tFase=performance.now(); }
   function cabeza(){ var s=RUTA[ci]; return s?{x:s.p[pi*2],y:s.p[pi*2+1],r:s.r}:null; }
   function avanza(){
-    var _n=performance.now(), _dt=c._tu?Math.min(60,_n-c._tu):16.7; c._tu=_n; c._ac=(c._ac||0)+_dt*0.45; var NP=Math.floor(c._ac); c._ac-=NP;
+    var _n=performance.now(), _dt=c._tu?Math.min(60,_n-c._tu):16.7; c._tu=_n; c._ac=(c._ac||0)+_dt*(ci===0?0.10:(ci<=3?0.45:0.17)); var NP=Math.floor(c._ac); c._ac-=NP;   // marco lento, letras M-L-2 rápido, rayas a la velocidad de siempre
     for(var n=0;n<NP;n++){
       var s=RUTA[ci]; if(!s){ fase='enfria'; tFase=performance.now(); return; }
       var x=s.p[pi*2], y=s.p[pi*2+1];
