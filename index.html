@@ -16428,7 +16428,7 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
     var gsel='';
     var h=gsel+'<div style="font-size:12px;color:#9aa3b0">Los elegidos pasan al <b>mismo grupo ('+lbl(gid)+')</b> del otro turno y salen en el ticker.</div>'
       +'<div class="cu-adm-h">➡ Turno que necesita gente</div><div class="st-dest">'+otros.map(function(t,i){ return '<label><input type="radio" name="st-dest" value="'+t+'"'+(i===0?' checked':'')+' style="display:none"><span>'+TL[t]+'</span></label>'; }).join('')+'</div>'
-      +'<div class="cu-adm-h">👥 Quién puede ir (quita a los que no)</div><div id="st-lista">'+lista.map(function(o){ var mo=motivo(o), dis=mo&&mo.k==='horas'; return '<label class="st-fila"'+(dis?' style="opacity:.45;cursor:not-allowed" title="Con la jornada reducida no vale para el sorteo"':'')+'><input type="checkbox" data-id="'+o.id+'"'+(mo?'':' checked')+(dis?' disabled':'')+'><span>'+esc(nom(o))+(o.esEtt?' <small style="margin:0">ETT</small>':'')+'</span>'+(mo?'<small style="color:#e0a46f;margin-left:6px">'+mo.t+'</small>':'')+'<small>'+(veces(gid,o)===1?'1 vez':veces(gid,o)+' veces')+'</small></label>'; }).join('')+'</div>'
+      +'<div class="cu-adm-h">👥 Quién puede ir (quita a los que no)</div><div id="st-lista">'+lista.map(function(o){ var mo=motivo(o), dis=!!mo; return '<label class="st-fila"'+(dis?' style="opacity:.45;cursor:not-allowed" title="'+(mo.k==='horas'?'Con la jornada reducida no vale para el sorteo':'Perfil especial: no entra en el sorteo de cambio de turno')+'"':'')+'><input type="checkbox" data-id="'+o.id+'"'+(mo?'':' checked')+(dis?' disabled':'')+'><span>'+esc(nom(o))+(o.esEtt?' <small style="margin:0">ETT</small>':'')+'</span>'+(mo?'<small style="color:#e0a46f;margin-left:6px">'+mo.t+'</small>':'')+'<small>'+(veces(gid,o)===1?'1 vez':veces(gid,o)+' veces')+'</small></label>'; }).join('')+'</div>'
       +'<div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span>¿Cuántos?</span><input id="st-n" class="st-num" type="number" min="1" max="'+lista.length+'" value="1">'
       +'<button class="btn btn-sm" style="background:#c2773a;color:#1a1200;font-weight:700" onclick="_stSortear()">🎲 Sortear</button></div>'
       +'<div class="st-res" id="st-res"></div>'
@@ -16439,7 +16439,7 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
   window._stSortear=function(){
     if(!sel) return; var gid=sel.gid;
     var ids=[].slice.call(document.querySelectorAll('#st-lista input:checked')).map(function(i){ return +i.getAttribute('data-id'); });
-    var pool=cands(gid).filter(function(o){ var m=motivo(o); return ids.indexOf(o.id)>-1 && !(m&&m.k==='horas'); });
+    var pool=cands(gid).filter(function(o){ return ids.indexOf(o.id)>-1 && !motivo(o); }); // perfiles especiales y jornada reducida nunca entran
     var n=Math.max(1,Math.min(+document.getElementById('st-n').value||1,pool.length));
     if(!pool.length){ mostrarToast('⚠ No hay nadie marcado'); return; }
     pool.forEach(function(o){ o._r=Math.random(); });
