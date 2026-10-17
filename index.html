@@ -15256,17 +15256,23 @@ window._cuMotor=function(dur,modo,fuerza,_ctxExt){ try{
       setTimeout(function(){ try{ var p=document.getElementById('pantalla-inicio'); if(p && getComputedStyle(p).display!=='none' && !window._modoUsuario) window._cuproLlega('bienvenida'); }catch(e){} },500);
     }
     d._proceder=proceder;
+    // Secuencia de entrada: el motor suena 3 s y después empieza el láser (símbolo ML2 y luego la firma)
+    function arrancaSec(gesto){
+      if(window._cuSecT0) return true;
+      var h=null, sinSonido=false;
+      try{ sinSonido=(typeof appConfig!=='undefined')&&appConfig.sonidos&&appConfig.sonidos.on===false; }catch(e){}
+      try{ if(!sinSonido && window._cuRalentiStart) h=window._cuRalentiStart(3,gesto); }catch(e){}
+      if(!h && !gesto && !sinSonido) return false;   // el navegador aún no deja sonar: espera a que toquen el coche
+      window._cuIdle=h; window._cuSecT0=Date.now(); return true;
+    }
     d.addEventListener('click',function(){
-      if(!window._cuSplashActivo || d._esp) return;
-      try{ if(!window._cuIdle && window._cuRalentiStart) window._cuIdle=window._cuRalentiStart(30,true); }catch(e){}
-      var h=window._cuIdle, oido=h?(Date.now()-h.t0):99999;
-      if(!h || oido>=1800){ proceder(); return; }
-      d._esp=true; setTimeout(proceder,Math.max(300,2600-oido));   // deja oír el ralentí antes de que salga el coche
+      if(!window._cuSplashActivo) return;
+      if(!window._cuSecT0){ arrancaSec(true); return; }
+      if(Date.now()-window._cuSecT0>=3000) proceder();   // segundo toque, ya con el láser: entra
     });
-    // Al abrir la app intenta arrancar el ralentí solo; si el navegador lo permite, a los 3,5 s sale el coche sin tocar nada
-    setTimeout(function(){ try{ if(window._cuSplashActivo && !window._cuIdle && window._cuRalentiStart){ var h=window._cuRalentiStart(24); if(h){ window._cuIdle=h; } } }catch(e){} },400);
-    // Si no tocan el coche, a los 20 s se pulsa solo (suena el ralentí hasta entonces)
-    setTimeout(proceder,20000);
+    setTimeout(function(){ try{ if(window._cuSplashActivo) arrancaSec(false); }catch(e){} },400);
+    // Si nadie toca, a los 20 s entra solo (si la secuencia va por la mitad, espera a que acabe)
+    (function respaldo(){ setTimeout(function(){ if(window._cuSecT0 && Date.now()-window._cuSecT0<16000){ respaldo(); return; } proceder(); }, window._cuSecT0?2000:20000); })();
     document.body.appendChild(d);
   }
   if(document.body) crear(); else document.addEventListener('DOMContentLoaded',crear);
@@ -16900,6 +16906,7 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
     if(!logo.complete||!logo.naturalWidth) return;
     ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,c.width,c.height);
     if(reducido){ ctx.drawImage(logo,0,0,c.width,c.height); return; }
+    if(!window._cuSecT0 || Date.now()-window._cuSecT0<3000){ c._tu=0; return; }
     if(!c._snd){ c._snd=1; try{ c._sndH=window._cuSoldSonido?window._cuSoldSonido():null; }catch(e){} }
     if(fase==='enfria'&&c._sndH){ try{ c._sndH.stop(); }catch(e){} c._sndH=null; }
     if(fase==='dibuja') avanza();
@@ -16969,7 +16976,7 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
     ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,c.width,c.height);
     if(reducido){ ctx.drawImage(off,0,0); return; }
     if(!listo) avanza();
-    if(listo&&!cerr){ cerr=true; window._firmaFin=Date.now(); setTimeout(function(){ try{ var sp=document.getElementById('cu-splash'); if(sp&&sp._proceder) sp._proceder(); }catch(e){} },1000); }
+    if(listo&&!cerr){ cerr=true; paraSnd(); window._firmaFin=Date.now(); setTimeout(function(){ try{ var sp=document.getElementById('cu-splash'); if(sp&&sp._proceder) sp._proceder(); }catch(e){} },1000); }
     ctx.globalCompositeOperation='source-over'; ctx.drawImage(off,0,0);
     var ahora=performance.now();
     // trazo recién dibujado: blanco incandescente que se enfría a cobre
@@ -16984,13 +16991,14 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
   }
   function visible(){ return !!document.getElementById('cu-splash'); }
   var vis=false, tVis=0, arrancado=false;
-  function arranca(){ arrancado=true; wrap.style.display='block'; reset(); if(reducido){ pintaTodo(); } activo=true; cancelAnimationFrame(raf); raf=requestAnimationFrame(frame); }
+  var snd=null; function paraSnd(){ if(snd){ try{ snd.stop(); }catch(e){} snd=null; } }
+  function arranca(){ arrancado=true; wrap.style.display='block'; reset(); paraSnd(); if(!reducido){ try{ snd=window._cuSoldSonido?window._cuSoldSonido(null,true):null; }catch(e){} } if(reducido){ pintaTodo(); } activo=true; cancelAnimationFrame(raf); raf=requestAnimationFrame(frame); }
   setInterval(function(){
     var v=visible(), sp=document.getElementById('cu-splash');
     if(v&&!vis){ vis=true; tVis=Date.now(); arrancado=false; activo=false; wrap.style.display='none'; if(wrap.parentNode!==sp) sp.appendChild(wrap); }
-    if(!v&&vis){ vis=false; arrancado=false; activo=false; cancelAnimationFrame(raf); wrap.style.display='none'; }
+    if(!v&&vis){ vis=false; arrancado=false; activo=false; paraSnd(); cancelAnimationFrame(raf); wrap.style.display='none'; }
     // la firma empieza cuando el símbolo ML2 ya está dibujado
-    if(vis&&!arrancado){ var lc=document.querySelector('#cu-splash .sp-sold canvas'), t=Date.now()-tVis; if((lc&&lc._fin)||t>14000) arranca(); }
+    if(vis&&!arrancado&&window._cuSecT0){ var lc=document.querySelector('#cu-splash .sp-sold canvas'), t=Date.now()-window._cuSecT0; if((lc&&lc._fin)||t>17000) arranca(); }
   },300);
 })();
 </script>
@@ -17013,18 +17021,20 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
   var NOM=['Arco eléctrico (MIG)','Soldador de estaño','TIG: siseo y zumbido','Esmeriladora de chispas','Láser / plasma'];
   function ruido(C,dens,amp,dec,seg){ var n=Math.floor(C.sampleRate*seg), b=C.createBuffer(1,n,C.sampleRate), d=b.getChannelData(0), env=0; for(var i=0;i<n;i++){ if(Math.random()<dens) env=Math.max(env,Math.random()*amp); env*=dec; d[i]=(Math.random()*2-1)*env; } return b; }
   function continuo(C,seg){ var n=Math.floor(C.sampleRate*seg), b=C.createBuffer(1,n,C.sampleRate), d=b.getChannelData(0); for(var i=0;i<n;i++) d[i]=Math.random()*2-1; return b; }
-  function fuente(C,buf,tipo,f,q,g,dest){ var s=C.createBufferSource(); s.buffer=buf; s.loop=true; var fl=C.createBiquadFilter(); fl.type=tipo; fl.frequency.value=f; fl.Q.value=q; var gn=C.createGain(); gn.gain.value=g; s.connect(fl); fl.connect(gn); gn.connect(dest); s.start(); return s; }
-  function osc(C,tipo,f,g,dest){ var o=C.createOscillator(); o.type=tipo; o.frequency.value=f; var gn=C.createGain(); gn.gain.value=g; o.connect(gn); gn.connect(dest); o.start(); return o; }
-  window._cuSoldSonido=function(idx){
-    var cf=cfg(); if(cf.on===false||cf.soldOn===false) return null; if(idx==null) idx=cf.sold|0; var vol=(cf.vol==null?.8:cf.vol)*(cf.soldVol==null?1:cf.soldVol);
+  var FX=1;   // >1 = versión fina (firma): todo más agudo
+  function fuente(C,buf,tipo,f,q,g,dest){ var s=C.createBufferSource(); s.buffer=buf; s.loop=true; var fl=C.createBiquadFilter(); fl.type=tipo; fl.frequency.value=Math.min(14000,f*FX); fl.Q.value=q; var gn=C.createGain(); gn.gain.value=g; s.connect(fl); fl.connect(gn); gn.connect(dest); s.start(); return s; }
+  function osc(C,tipo,f,g,dest){ var o=C.createOscillator(); o.type=tipo; o.frequency.value=f*(FX>1&&f>20?FX*1.3:1); var gn=C.createGain(); gn.gain.value=g; o.connect(gn); gn.connect(dest); o.start(); return o; }
+  window._cuSoldSonido=function(idx,fino){
+    var cf=cfg(); if(cf.on===false||cf.soldOn===false) return null; if(idx==null) idx=cf.sold|0; var vol=(cf.vol==null?.8:cf.vol)*(cf.soldVol==null?1:cf.soldVol)*(fino?.55:1);
     var h={fuentes:[],stop:function(){}}; var parado=false;
-    listo(function(C){ if(parado) return;
-      var out=C.createGain(); out.gain.setValueAtTime(0,C.currentTime); out.gain.linearRampToValueAtTime(.5*vol,C.currentTime+.15); out.connect(C.destination); var f=h.fuentes;
+    listo(function(C){ if(parado) return; FX=fino?1.8:1;
+      var out=C.createGain(); out.gain.setValueAtTime(0,C.currentTime); out.gain.linearRampToValueAtTime(.5*vol,C.currentTime+.15); var f=h.fuentes;
+      if(fino){ var hp=C.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=2200; hp.Q.value=.7; out.connect(hp); hp.connect(C.destination); } else out.connect(C.destination);
       if(idx===0){ f.push(fuente(C,ruido(C,.006,1,.9985,2),'bandpass',2600,.9,1.4,out), fuente(C,ruido(C,.0015,1,.999,2),'lowpass',900,.7,.9,out), osc(C,'square',100,.05,out)); }
       else if(idx===1){ f.push(fuente(C,ruido(C,.03,.8,.996,2),'highpass',4200,.6,.9,out), fuente(C,continuo(C,2),'highpass',6500,.5,.05,out)); }
       else if(idx===2){ f.push(fuente(C,continuo(C,2),'bandpass',4800,.7,.22,out), osc(C,'sine',120,.14,out), osc(C,'sine',240,.05,out), fuente(C,ruido(C,.0008,1,.9993,2),'bandpass',3200,1,.7,out)); }
       else if(idx===3){ var lf=osc(C,'sine',5.5,.35,out); f.push(lf); var rg=C.createGain(); rg.gain.value=.5; f.push(fuente(C,ruido(C,.02,1,.9975,2),'bandpass',3600,.8,1.2,out), fuente(C,continuo(C,2),'lowpass',2200,.6,.25,out)); }
-      else { var o=C.createOscillator(); o.type='sawtooth'; o.frequency.setValueAtTime(900,C.currentTime); o.frequency.linearRampToValueAtTime(1500,C.currentTime+3); var lp=C.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=2600; var g=C.createGain(); g.gain.value=.1; var vi=C.createOscillator(); vi.frequency.value=28; var vg=C.createGain(); vg.gain.value=40; vi.connect(vg); vg.connect(o.frequency); o.connect(lp); lp.connect(g); g.connect(out); o.start(); vi.start(); f.push(o,vi); f.push(fuente(C,ruido(C,.004,1,.998,2),'highpass',6000,.7,.5,out)); }
+      else { var o=C.createOscillator(); o.type='sawtooth'; o.frequency.setValueAtTime(900*FX,C.currentTime); o.frequency.linearRampToValueAtTime(1500*FX,C.currentTime+3); var lp=C.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=2600*FX; var g=C.createGain(); g.gain.value=.1; var vi=C.createOscillator(); vi.frequency.value=28; var vg=C.createGain(); vg.gain.value=40; vi.connect(vg); vg.connect(o.frequency); o.connect(lp); lp.connect(g); g.connect(out); o.start(); vi.start(); f.push(o,vi); f.push(fuente(C,ruido(C,.004,1,.998,2),'highpass',6000,.7,.5,out)); }
       h.stop=function(){ var t=C.currentTime; try{ out.gain.cancelScheduledValues(t); out.gain.setValueAtTime(out.gain.value,t); out.gain.linearRampToValueAtTime(0,t+.45); }catch(e){} setTimeout(function(){ f.forEach(function(s){ try{ s.stop(); }catch(e){} }); },600); };
       if(parado) h.stop();
     });
