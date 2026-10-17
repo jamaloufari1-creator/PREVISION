@@ -15754,6 +15754,25 @@ window._cuMotor=function(dur,modo,fuerza,_ctxExt){ try{
   setInterval(function(){ aplicar(); menuAdmin(); },700);
   window.addEventListener('resize',aplicar);
 })();
+// Situación taller: el panel se ajusta justo encima de Cupra para que el robot y el texto no lo tapen
+(function(){
+  function hueco(){ try{
+    var cu=document.getElementById('estado-taller-cuerpo'); if(!cu) return;
+    var ec=document.getElementById('estado-cupra'), t=document.getElementById('estado-taller');
+    cu.style.paddingBottom=''; if(t){ t.style.zoom=''; t.style.flexShrink='0'; }
+    if(!ec||!t) return;
+    var sobra=cu.getBoundingClientRect().bottom-ec.getBoundingClientRect().top+10;
+    if(sobra<=0) return;
+    cu.style.paddingBottom=sobra+'px';
+    var z=parseFloat(getComputedStyle(t).zoom)||1, h=t.getBoundingClientRect().height, cabe=cu.clientHeight-sobra;
+    if(h>cabe&&cabe>0) t.style.setProperty('zoom',Math.max(0.55,z*cabe/h).toFixed(3),'important');
+  }catch(e){} }
+  function tras(n){ var f=window[n]; if(typeof f!=='function') return;
+    window[n]=function(){ var r=f.apply(this,arguments); hueco(); setTimeout(hueco,300); setTimeout(hueco,2200); return r; }; }
+  tras('_abrirEstadoTallerModal'); tras('_refrescarEstadoTaller');
+  window.addEventListener('resize',hueco);
+  document.addEventListener('load',function(e){ if(e.target&&e.target.closest&&e.target.closest('#estado-cupra')) hueco(); },true);
+})();
 </script>
 <style id="css-movil-wa">
 /* ── Móvil de mensajes: copia de WhatsApp con diseño Cupra ── */
