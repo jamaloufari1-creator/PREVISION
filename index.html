@@ -9182,11 +9182,7 @@ function ajustarZoomBienvenida(){
   if(window.innerWidth <= 700) return;               // en el móvil se mantiene el scroll de siempre
   const h = w.getBoundingClientRect().height, ancho = w.getBoundingClientRect().width;
   if(!h) return;
-  // El admin la ve más grande (como pidió Jamal); el resto como siempre
-  const tope = esAdminInicio() ? 1.25 : 1;
-  // (el admin prefiere verla grande aunque haya que bajar un poco con la rueda)
-  const z = esAdminInicio() ? Math.min(tope, (window.innerWidth - 16) / Math.max(ancho,1))
-                            : Math.min(tope, (window.innerHeight - 24) / h, (window.innerWidth - 16) / Math.max(ancho,1));
+  const z = Math.min(1, (window.innerHeight - 24) / h, (window.innerWidth - 16) / Math.max(ancho,1));
   w.style.zoom = Math.max(0.5, z);
 }
 window.addEventListener('resize', ()=>{ try{ ajustarZoomBienvenida(); }catch(e){} });
@@ -14858,7 +14854,7 @@ body::before,#pantalla-inicio::before{background:
 /* Cupra flota encima, abajo, sin ocupar sitio: el panel se ve entero y el texto lleva fondo transparente.
    Llega en coche y se transforma en robot; si no hay nada que contar no sale. */
 #modal-estado-taller #estado-taller-cuerpo>#estado-cupra{position:absolute;left:22px;right:22px;bottom:16px;width:auto;max-width:1100px;margin:0 auto;z-index:6;pointer-events:none;}
-#estado-cupra .ec-box{background:transparent !important;text-shadow:0 1px 3px #000,0 0 8px rgba(0,0,0,.9);animation:ecTexto .5s ease-out 1.9s both;}
+#estado-cupra .ec-box{border:0 !important;clip-path:none !important;padding-left:0 !important;background:transparent !important;text-shadow:0 1px 3px #000,0 0 8px rgba(0,0,0,.9);animation:ecTexto .5s ease-out 1.9s both;}
 #estado-cupra .ec-car{position:relative;min-height:120px;}
 #estado-cupra .ec-car img{position:absolute;left:0;right:0;margin:auto;max-height:100%;}
 #estado-cupra .ec-coche{top:50%;transform:translateY(-50%);animation:ecCoche 1.9s ease-out both;}
@@ -14868,6 +14864,7 @@ body::before,#pantalla-inicio::before{background:
 @keyframes ecRobot{0%{opacity:0;transform:scale(.4);filter:brightness(2.5) drop-shadow(0 0 22px #e29a5b)}100%{opacity:1;transform:scale(1)}}
 #estado-cupra.ec-ya .ec-coche{display:none}
 #estado-cupra.ec-ya .ec-robot,#estado-cupra.ec-ya .ec-box,#estado-cupra.ec-ya .ec-car span{animation:none}
+#estado-cupra .ec-box::before,#estado-cupra .ec-box::after{display:none !important;content:none !important;}
 @keyframes ecTexto{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){#estado-cupra .ec-coche{display:none}#estado-cupra .ec-robot,#estado-cupra .ec-box,#estado-cupra .ec-car span{animation:none}}
 </style>
@@ -15733,21 +15730,13 @@ window._cuMotor=function(dur,modo,fuerza,_ctxExt){ try{
 .un-grupo{grid-template-columns:1fr !important;}
 </style>
 <script id="js-tamano-vistas">
-/* Tamaño de cada vista en el ordenador (lo eligió Jamal con capturas):
-   RTF/supervisor 90 %, quien ve un solo grupo 90 % (y el panel a todo lo ancho), portavoz con varios grupos 100 %.
+/* Si solo se ve un grupo, su panel ocupa todo el ancho.
    Los botones de abajo del inicio del admin pasan al menú Herramientas. */
 (function(){
-  function grupos(){ return [].slice.call(document.querySelectorAll('[class*="tramo-grid"] > .tramo-grupo')).filter(function(e){ return e.offsetParent!==null; }); }
   function aplicar(){ try{
-    var sh=document.querySelector('.shell'); if(!sh) return;
-    var vis=grupos(), m=window._modoUsuario||'';
     [].slice.call(document.querySelectorAll('[class*="tramo-grid"]')).forEach(function(g){
       var n=[].slice.call(g.children).filter(function(e){ return e.classList.contains('tramo-grupo')&&e.offsetParent!==null; }).length;
       g.classList.toggle('un-grupo', n===1); });
-    var z=1;
-    if(window.innerWidth>900 && m && m!=='admin'){ if(m==='supervisor'||vis.length===1) z=.9; }
-    var zs=String(z);
-    if(sh.style.zoom!==zs && !(z===1&&!sh.style.zoom)){ sh.style.zoom=z===1?'':zs; sh.style.height=z===1?'':'calc(100vh / '+z+')'; }
   }catch(e){} }
   function menuAdmin(){ try{
     var pn=document.getElementById('menu-mas-panel'), src=document.getElementById('inicio-admin-extra'); if(!pn||!src) return;
@@ -15764,6 +15753,25 @@ window._cuMotor=function(dur,modo,fuerza,_ctxExt){ try{
   }catch(e){} }
   setInterval(function(){ aplicar(); menuAdmin(); },700);
   window.addEventListener('resize',aplicar);
+})();
+// Situación taller: el panel se ajusta justo encima de Cupra para que el robot y el texto no lo tapen
+(function(){
+  function hueco(){ try{
+    var cu=document.getElementById('estado-taller-cuerpo'); if(!cu) return;
+    var ec=document.getElementById('estado-cupra'), t=document.getElementById('estado-taller');
+    cu.style.paddingBottom=''; if(t){ t.style.zoom=''; t.style.flexShrink='0'; }
+    if(!ec||!t) return;
+    var sobra=cu.getBoundingClientRect().bottom-ec.getBoundingClientRect().top+10;
+    if(sobra<=0) return;
+    cu.style.paddingBottom=sobra+'px';
+    var z=parseFloat(getComputedStyle(t).zoom)||1, h=t.getBoundingClientRect().height, cabe=cu.clientHeight-sobra;
+    if(h>cabe&&cabe>0) t.style.setProperty('zoom',Math.max(0.55,z*cabe/h).toFixed(3),'important');
+  }catch(e){} }
+  function tras(n){ var f=window[n]; if(typeof f!=='function') return;
+    window[n]=function(){ var r=f.apply(this,arguments); hueco(); setTimeout(hueco,300); setTimeout(hueco,2200); return r; }; }
+  tras('_abrirEstadoTallerModal'); tras('_refrescarEstadoTaller');
+  window.addEventListener('resize',hueco);
+  document.addEventListener('load',function(e){ if(e.target&&e.target.closest&&e.target.closest('#estado-cupra')) hueco(); },true);
 })();
 </script>
 <style id="css-movil-wa">
