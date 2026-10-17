@@ -16091,6 +16091,9 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
 #movil-off .mo-desliza{display:none;position:absolute;left:0;right:0;bottom:22px;z-index:3;text-align:center;color:#f0c9a0;font:600 13px Oswald,sans-serif;letter-spacing:.12em;text-transform:uppercase;text-shadow:0 1px 4px #000;animation:moDesliza 1.6s ease-in-out infinite;}
 #movil-off .mo-desliza span{display:block;font-size:22px;line-height:1;}
 #movil-off.boot .mo-desliza{display:block;}
+/* Mientras sale el coche, lo de detrás (la lista) no se pinta: si el móvil tarda en dibujar la pantalla del coche, nunca asoma a trozos */
+#movil-off.boot{contain:paint;transform:translateZ(0);}
+#movil-device.mo-bloq #movil-screen-contactos > *,#movil-device.mo-bloq #movil-screen-conv > *{visibility:hidden !important;}
 @keyframes moDesliza{0%,100%{transform:translateY(0);opacity:.6}50%{transform:translateY(-8px);opacity:1}}
 </style>
 <script id="js-fix-angulos">
@@ -16142,7 +16145,7 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
     clearTimeout(tCierre);
     var o=construir(); if(!o||ocupado) return; ocupado=true; colocar();
     var car=o.querySelector('.mo-car'); try{ car.innerHTML=(typeof window._cuproCoche==='function')?window._cuproCoche():''; }catch(e){}
-    o.style.opacity=''; o.className='boot'; btn().classList.remove('off'); d_().classList.remove('movil-apagado'); encendido=true;
+    o.style.opacity=''; o.className='boot'; btn().classList.remove('off'); d_().classList.remove('movil-apagado'); d_().classList.add('mo-bloq'); encendido=true;
     // El coche se queda hasta que se desbloquea: deslizando hacia arriba en el móvil o con un clic en el PC
     var tactil=('ontouchstart' in window)||navigator.maxTouchPoints>0;
     var av=o.querySelector('.mo-desliza'); if(!av){ av=document.createElement('div'); av.className='mo-desliza'; o.appendChild(av); }
@@ -16151,7 +16154,7 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
   }
   function desbloquear(){
     var o=document.getElementById('movil-off'); if(!o||!o.classList.contains('boot')||o.classList.contains('sube')) return;
-    o.classList.add('sube');
+    o.classList.add('sube'); d_().classList.remove('mo-bloq');
     setTimeout(function(){ o.className=''; o.style.opacity=''; o.style.transform=''; o.style.clipPath=''; },450);
   }
   // Gestos sobre la pantalla del coche
@@ -16163,6 +16166,11 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
       if(dy<-60 || (dy<-25 && Date.now()-t0<300)) desbloquear(); else if(o){ o.style.transform=''; o.style.clipPath=''; } });
     document.addEventListener('click',function(e){ var o=e.target&&e.target.closest&&e.target.closest('#movil-off.boot'); if(!o) return; if(('ontouchstart' in window)&&e.sourceCapabilities&&e.sourceCapabilities.firesTouchEvents) return; desbloquear(); });
   })();
+  // Si cambia el tamaño (barra del navegador, girar el móvil...), la pantalla del coche se reajusta
+  window.addEventListener('resize',function(){ var o=document.getElementById('movil-off'); if(o&&o.className) colocar(); });
+  try{ var ro=new ResizeObserver(function(){ var o=document.getElementById('movil-off'); if(o&&o.className) colocar(); });
+    var obs=function(){ ['movil-screen-contactos','movil-screen-conv'].forEach(function(id){ var e=document.getElementById(id); if(e) ro.observe(e); }); };
+    document.addEventListener('DOMContentLoaded',obs); setTimeout(obs,600); }catch(e){}
   function alternar(){ if(ocupado) return; if(encendido) apagar(); else encender(); }
   window.movilAlternarEnergia=alternar;
   // Al abrir el móvil siempre está encendido
