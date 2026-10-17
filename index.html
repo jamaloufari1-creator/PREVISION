@@ -549,7 +549,28 @@ body{font-family:IBM Plex Sans,sans-serif;background:var(--bg);color:var(--text)
         actualizar: async (id, campo, valor) => {
           const patch = {};
           patch[campo] = valor;
-          await _sb.from('mensajes').update(patch).eq('id', id);
+          const { error } = await _sb.from('mensajes').update(patch).eq('id', id);
+          if(error) throw error;
+        },
+        // Añade "yo=true" al mapa leido/recibido SIN borrar lo que otros ya marcaron:
+        // lee el valor actual del servidor, lo mezcla y lo guarda (con reintentos)
+        marcarEn: async (id, campo, quien) => {
+          for(let i=0;i<3;i++){
+            try{
+              const { data, error } = await _sb.from('mensajes').select(campo).eq('id', id).maybeSingle();
+              if(error) throw error;
+              const actual = {...((data&&data[campo])||{})};
+              if(actual[quien]) return actual;
+              actual[quien] = true;
+              const patch = {}; patch[campo] = actual;
+              const r = await _sb.from('mensajes').update(patch).eq('id', id);
+              if(r.error) throw r.error;
+              return actual;
+            }catch(e){
+              console.warn('[mensajes] no se pudo marcar '+campo, e);
+              await new Promise(ok=>setTimeout(ok, 1500*(i+1)));
+            }
+          }
         },
         recientes: async () => {
           const hace60min = Date.now() - 60*60*1000;
@@ -6632,6 +6653,24 @@ function leerMensajesGrupo(gid){
   });
 }
 
+// ── Leídos guardados en el propio dispositivo ──
+// El "leído" del servidor puede perderse (sin red al cerrar, o pisado por otro
+// dispositivo que guardó a la vez). Esta copia local evita que, al reabrir la
+// app, un mensaje ya leído vuelva a salir como nuevo y a sonar.
+const _LEIDOS_KEY='prev_msgs_leidos';
+function _leidosLocales(){
+  try{
+    const o=JSON.parse(localStorage.getItem(_LEIDOS_KEY)||'{}')||{};
+    const lim=Date.now()-3*60*60*1000;
+    Object.keys(o).forEach(k=>{ if(!(o[k]>lim)) delete o[k]; });
+    return o;
+  }catch(e){ return {}; }
+}
+function _leidoLocal(mi,msgId){ return !!_leidosLocales()[mi+'|'+msgId]; }
+function _guardarLeidoLocal(mi,msgId){
+  try{ const o=_leidosLocales(); o[mi+'|'+msgId]=Date.now(); localStorage.setItem(_LEIDOS_KEY,JSON.stringify(o)); }catch(e){}
+}
+
 // ── Mostrar mensaje ──
 function _mostrarMsg(msg, esPropio){
   const mi=window._modoUsuario||grupoActivo;
@@ -6645,14 +6684,19 @@ function _mostrarMsg(msg, esPropio){
 
   // Si el servidor ya tiene registrado que YO leí este mensaje (persiste entre
   // cierres/aperturas de la app), no debe volver a sonar ni marcarse pendiente
-  if(!esPropio && msg.leido && msg.leido[mi]){
-    _msgsActivos[msg.id]={id:msg.id, _leidoData:{...msg.leido}};
+  const leidoServ = !!(msg.leido && msg.leido[mi]);
+  if(!esPropio && (leidoServ || _leidoLocal(mi,msg.id))){
+    _msgsActivos[msg.id]={id:msg.id, _leidoData:{...(msg.leido||{})}};
     _msgsLeidos.add(msg.id);
+    // Leído aquí pero el servidor no se enteró: volver a guardarlo
+    if(!leidoServ && window._sbMensajes && window._sbMensajes.marcarEn){
+      window._sbMensajes.marcarEn(msg.id,'leido',mi);
+    }
     return;
   }
 
   // Registrar el mensaje como activo (para ticks)
-  const obj={id:msg.id, _leidoData:{}};
+  const obj={id:msg.id, _leidoData:{...(msg.leido||{})}};
   _msgsActivos[msg.id]=obj;
 
   if(!esPropio&&meAfecta){
@@ -6663,8 +6707,9 @@ function _mostrarMsg(msg, esPropio){
     sonarAlarmaChat(tipo);
     try{
       if(window._sbMensajes){
-        const recibido = {...(msg.recibido||{})}; recibido[mi]=true;
-        window._sbMensajes.actualizar(msg.id, 'recibido', recibido);
+        if(window._sbMensajes.marcarEn) window._sbMensajes.marcarEn(msg.id, 'recibido', mi);
+        else { const recibido = {...(msg.recibido||{})}; recibido[mi]=true;
+          window._sbMensajes.actualizar(msg.id, 'recibido', recibido).catch(()=>{}); }
       }
     }catch(e){}
   }
@@ -6677,14 +6722,17 @@ function _marcarLeidoMsg(msgId){
   _msgsLeidos.add(msgId);
   _msgsPendientes.delete(msgId);
   delete _msgDestinos[msgId];
+  _guardarLeidoLocal(mi,msgId);
   actualizarBtnLeerTodo();
   try{
     if(window._sbMensajes){
       const obj = _msgsActivos[msgId];
-      const leidoActual = (obj&&obj._leidoData) ? {...obj._leidoData} : {};
-      leidoActual[mi] = true;
-      if(obj) obj._leidoData = leidoActual;
-      window._sbMensajes.actualizar(msgId, 'leido', leidoActual);
+      if(obj) obj._leidoData = {...(obj._leidoData||{}), [mi]:true};
+      if(window._sbMensajes.marcarEn){
+        window._sbMensajes.marcarEn(msgId, 'leido', mi).then(v=>{ if(v&&obj) obj._leidoData=v; });
+      } else {
+        window._sbMensajes.actualizar(msgId, 'leido', obj?obj._leidoData:{[mi]:true}).catch(()=>{});
+      }
     }
   }catch(e){}
   setTimeout(()=>_quitarMsg(msgId), 60*1000);
@@ -6838,7 +6886,8 @@ function cargarMensajes(){
           const me=_destCoincide(dest,mi);
           if(!esPropio&&!me) return;
           if(_msgsActivos[msg.id]){
-            if(!esPropio&&!_msgsLeidos.has(msg.id)&&!_msgsPendientes.has(msg.id)){
+            if(!esPropio&&!_msgsLeidos.has(msg.id)&&!_msgsPendientes.has(msg.id)
+               &&!(msg.leido&&msg.leido[mi])&&!_leidoLocal(mi,msg.id)){
               const me2=_destCoincide(dest,mi);
               if(me2){
                 _msgsPendientes.add(msg.id);
