@@ -9140,7 +9140,10 @@ function _togglePrevEstado(){
 }
 function _refrescarEstadoTaller(){
   const cuerpo = document.getElementById('estado-taller-cuerpo'); if(!cuerpo) return;
+  const yaSalio = !!document.getElementById('estado-cupra');
   cuerpo.innerHTML = estadoTallerHtml();
+  // Si Cupra ya había llegado, al refrescar los datos no vuelve a entrar en coche
+  const ec = document.getElementById('estado-cupra'); if(ec && yaSalio) ec.classList.add('ec-ya');
 }
 function _puedeVerEstadoTaller(){
   // RTF, supervisores, grupos y admin sí; Invitado y roles de solo lectura no.
@@ -9179,7 +9182,11 @@ function ajustarZoomBienvenida(){
   if(window.innerWidth <= 700) return;               // en el móvil se mantiene el scroll de siempre
   const h = w.getBoundingClientRect().height, ancho = w.getBoundingClientRect().width;
   if(!h) return;
-  const z = Math.min(1, (window.innerHeight - 24) / h, (window.innerWidth - 16) / Math.max(ancho,1));
+  // El admin la ve más grande (como pidió Jamal); el resto como siempre
+  const tope = esAdminInicio() ? 1.25 : 1;
+  // (el admin prefiere verla grande aunque haya que bajar un poco con la rueda)
+  const z = esAdminInicio() ? Math.min(tope, (window.innerWidth - 16) / Math.max(ancho,1))
+                            : Math.min(tope, (window.innerHeight - 24) / h, (window.innerWidth - 16) / Math.max(ancho,1));
   w.style.zoom = Math.max(0.5, z);
 }
 window.addEventListener('resize', ()=>{ try{ ajustarZoomBienvenida(); }catch(e){} });
@@ -9270,7 +9277,7 @@ function actualizarBotonesInicio(){
     : `<div style="width:60%;margin:0 auto;">${nodoPerfil('rtf', true)}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:90px;row-gap:10px;align-items:start;margin-top:30px;">${ramas}</div>`;
   cont.innerHTML = `${_btnEstado}${_turnosAB}
-    ${adm ? `<div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
+    ${adm ? `<div id="inicio-admin-extra" style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
       ${botonMas('+ Añadir sección', 'añadirSeccion()')}
       ${(appConfig.gruposOcultos103||[]).includes('g17') ? '' : `<button onclick="unirGrupoEn103('g17','g16')" title="Pasa todo el grupo 17 al 16 y quita el 17, solo en el turno 103" style="padding:10px;font-family:Oswald,sans-serif;font-size:13px;font-weight:700;border:2px dashed var(--border2);background:transparent;color:var(--muted2);cursor:pointer;">🔀 Unir grupo 17 → 16 (turno 103)</button>`}
       ${GRUPOS_DATA.g11 && !(appConfig.gruposOcultos103||[]).includes('g11') ? `<button onclick="repartirGrupo11()" title="Quita el grupo 11 y reparte sus cargas, tactos y operarios entre el 9 y el 12 (Excel 212)" style="padding:10px;font-family:Oswald,sans-serif;font-size:13px;font-weight:700;border:2px dashed var(--border2);background:transparent;color:var(--muted2);cursor:pointer;">🔀 Quitar grupo 11 → 9 y 12</button>` : (GRUPOS_DATA.g9 && GRUPOS_DATA.g12 && !(GRUPOS_DATA.g9._cargas212 && GRUPOS_DATA.g12._cargas212) ? `<button onclick="completarCargas212()" title="Añade al 9 y al 12 las cargas del Excel 212 que les falten (no borra nada)" style="padding:10px;font-family:Oswald,sans-serif;font-size:13px;font-weight:700;border:2px dashed var(--border2);background:transparent;color:var(--muted2);cursor:pointer;">🔀 Completar cargas 9 y 12 (Excel 212)</button>` : '')}
@@ -14848,6 +14855,21 @@ body::before,#pantalla-inicio::before{background:
 #estado-cupra b{color:#fff;}
 @media (min-width:1100px){#modal-estado-taller #estado-taller-cuerpo>#estado-cupra{font-size:15px;width:min(100%,1100px);}}
 @media (max-width:600px){#estado-cupra .ec-car{display:none;}}
+/* Cupra flota encima, abajo, sin ocupar sitio: el panel se ve entero y el texto lleva fondo transparente.
+   Llega en coche y se transforma en robot; si no hay nada que contar no sale. */
+#modal-estado-taller #estado-taller-cuerpo>#estado-cupra{position:absolute;left:22px;right:22px;bottom:16px;width:auto;max-width:1100px;margin:0 auto;z-index:6;pointer-events:none;}
+#estado-cupra .ec-box{background:transparent !important;text-shadow:0 1px 3px #000,0 0 8px rgba(0,0,0,.9);animation:ecTexto .5s ease-out 1.9s both;}
+#estado-cupra .ec-car{position:relative;min-height:120px;}
+#estado-cupra .ec-car img{position:absolute;left:0;right:0;margin:auto;max-height:100%;}
+#estado-cupra .ec-coche{top:50%;transform:translateY(-50%);animation:ecCoche 1.9s ease-out both;}
+#estado-cupra .ec-robot{top:0;bottom:0;animation:ecRobot .7s ease-out 1.3s both;}
+#estado-cupra .ec-car span{position:absolute;bottom:-14px;left:0;right:0;text-align:center;animation:ecTexto .4s ease-out 1.8s both;}
+@keyframes ecCoche{0%{transform:translate(-160%,-50%);opacity:0}15%{opacity:1}60%{transform:translate(0,-50%);opacity:1;filter:none}80%{transform:translate(0,-50%) scale(1.05);opacity:1;filter:brightness(2.2) drop-shadow(0 0 18px #e29a5b)}100%{transform:translate(0,-50%) scale(.6);opacity:0}}
+@keyframes ecRobot{0%{opacity:0;transform:scale(.4);filter:brightness(2.5) drop-shadow(0 0 22px #e29a5b)}100%{opacity:1;transform:scale(1)}}
+#estado-cupra.ec-ya .ec-coche{display:none}
+#estado-cupra.ec-ya .ec-robot,#estado-cupra.ec-ya .ec-box,#estado-cupra.ec-ya .ec-car span{animation:none}
+@keyframes ecTexto{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#estado-cupra .ec-coche{display:none}#estado-cupra .ec-robot,#estado-cupra .ec-box,#estado-cupra .ec-car span{animation:none}}
 </style>
 
 
@@ -15690,14 +15712,58 @@ window._cuMotor=function(dur,modo,fuerza,_ctxExt){ try{
       s+=src?' El turno <b>'+TN[src]+'</b> debería enviar gente: le sobran +'+f(tur[src].sobra)+' ('+lista(tur[src].p,1)+').':' Ningún turno tiene sobra: hay que pedir refuerzo.';
       P.push('<li class="prev">'+s+'</li>'); });
     if(!P.length && Object.keys(tur).length>1) P.push('<li class="ok">Previsión de turnos: ninguno falta gente.</li>');
-    var car=''; try{ var hh=(typeof window._cuproFull==='function')?window._cuproFull(''):''; var mm=/src="([^"]+)"/.exec(hh); if(mm) car='<img class="ec-robot" src="'+mm[1]+'" alt="Cupra">'; }catch(e){}
-    return '<div id="estado-cupra"><div class="ec-car">'+car+'<span>CUPRA</span></div><div class="ec-box"><div class="ec-t">CUPRA · LO QUE VEO</div><ul>'+L.concat(P).join('')+'</ul></div></div>';
+    // Solo aparece si hay algo que contar (algún grupo corto o una previsión con falta de gente)
+    var hay=L.concat(P).some(function(x){ return /class="(mal|prev)"/.test(x); });
+    if(!hay) return '';
+    var robot='', coche=''; try{ var hh=(typeof window._cuproFull==='function')?window._cuproFull(''):''; var mm=/src="([^"]+)"/.exec(hh); if(mm) robot='<img class="ec-robot" src="'+mm[1]+'" alt="Cupra">'; }catch(e){}
+    try{ var hc=(typeof window._cuproCoche==='function')?window._cuproCoche():''; var mc=/src="([^"]+)"/.exec(hc); if(mc) coche='<img class="ec-coche" src="'+mc[1]+'" alt="">'; }catch(e){}
+    return '<div id="estado-cupra"><div class="ec-car">'+coche+robot+'<span>CUPRA</span></div><div class="ec-box"><div class="ec-t">CUPRA · LO QUE VEO</div><ul>'+L.concat(P).join('')+'</ul></div></div>';
   }
   var orig=window.estadoTallerHtml;
   if(typeof orig==='function'){
     var nuevo=function(){ var h=orig.apply(this,arguments); try{ return h+analisis(); }catch(e){ console.warn('cupra analisis',e); return h; } };
     window.estadoTallerHtml=nuevo; try{ estadoTallerHtml=nuevo; }catch(e){}
   }
+})();
+</script>
+<style id="css-tamano-vistas">
+/* Pantalla de inicio del admin: los botones de abajo ya están en Herramientas */
+#inicio-admin-extra{display:none !important;}
+/* Si solo se ve un grupo, su panel ocupa todo el ancho */
+.un-grupo{grid-template-columns:1fr !important;}
+</style>
+<script id="js-tamano-vistas">
+/* Tamaño de cada vista en el ordenador (lo eligió Jamal con capturas):
+   RTF/supervisor 90 %, quien ve un solo grupo 90 % (y el panel a todo lo ancho), portavoz con varios grupos 100 %.
+   Los botones de abajo del inicio del admin pasan al menú Herramientas. */
+(function(){
+  function grupos(){ return [].slice.call(document.querySelectorAll('[class*="tramo-grid"] > .tramo-grupo')).filter(function(e){ return e.offsetParent!==null; }); }
+  function aplicar(){ try{
+    var sh=document.querySelector('.shell'); if(!sh) return;
+    var vis=grupos(), m=window._modoUsuario||'';
+    [].slice.call(document.querySelectorAll('[class*="tramo-grid"]')).forEach(function(g){
+      var n=[].slice.call(g.children).filter(function(e){ return e.classList.contains('tramo-grupo')&&e.offsetParent!==null; }).length;
+      g.classList.toggle('un-grupo', n===1); });
+    var z=1;
+    if(window.innerWidth>900 && m && m!=='admin'){ if(m==='supervisor'||vis.length===1) z=.9; }
+    var zs=String(z);
+    if(sh.style.zoom!==zs && !(z===1&&!sh.style.zoom)){ sh.style.zoom=z===1?'':zs; sh.style.height=z===1?'':'calc(100vh / '+z+')'; }
+  }catch(e){} }
+  function menuAdmin(){ try{
+    var pn=document.getElementById('menu-mas-panel'), src=document.getElementById('inicio-admin-extra'); if(!pn||!src) return;
+    var firma=[].slice.call(src.children).map(function(b){ return b.textContent.trim(); }).join('|');
+    if(pn._firmaExtra===firma) return; pn._firmaExtra=firma;
+    [].slice.call(pn.querySelectorAll('.adm-extra-m')).forEach(function(b){ b.remove(); });
+    [].slice.call(src.children).forEach(function(b){
+      if(b.tagName!=='BUTTON'||/^btn-cu-|^btn-permisos-inicio$/.test(b.id||'')) return;   // esos ya están en Herramientas
+      var c=document.createElement('button'); c.className='btn btn-sm adm-extra-m'; c.setAttribute('data-solo','admin');
+      c.textContent=b.textContent.trim(); c.title=b.title||''; c.style.cssText='color:var(--muted2);border-color:var(--border2);';
+      var oc=b.getAttribute('onclick'); c.onclick=function(ev){ ev.stopPropagation(); try{ (new Function(oc))(); }catch(e){ console.warn(e); } };
+      if(!esAdminInicio()) c.style.display='none';
+      pn.appendChild(c); });
+  }catch(e){} }
+  setInterval(function(){ aplicar(); menuAdmin(); },700);
+  window.addEventListener('resize',aplicar);
 })();
 </script>
 <style id="css-movil-wa">
