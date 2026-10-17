@@ -6182,7 +6182,7 @@ async function movilFotoSeleccionada(event){
     const ext = (file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jpg';
     const path = mi+'/'+Date.now()+'_'+Math.random().toString(36).slice(2)+'.'+ext;
     const { error: upErr } = await window._sbClient.storage.from('chat-fotos').upload(path, file, { upsert:false, contentType: file.type||'image/jpeg' });
-    if(upErr){ console.warn('Subida foto:', upErr); mostrarToast('⚠ No se pudo subir la foto (¿existe el bucket "chat-fotos"?)'); return; }
+    if(upErr){ console.warn('Subida foto:', upErr); mostrarToast('⚠ No se pudo subir la foto: '+(upErr.message||upErr.error||'error del servidor')); return; }
     const { data: pub } = window._sbClient.storage.from('chat-fotos').getPublicUrl(path);
     const url = pub && pub.publicUrl;
     if(!url){ mostrarToast('⚠ No se pudo obtener el enlace de la foto'); return; }
@@ -16086,7 +16086,8 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
 @keyframes moEntra{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
 /* Desbloqueo: deslizar hacia arriba (móvil) o clic (PC) */
 #movil-off.boot{cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;}
-#movil-off.sube{transition:transform .45s ease-in,opacity .45s ease-in;transform:translateY(-100%) !important;opacity:0;}
+/* Al subir, lo que pasa por encima de la pantalla se recorta: nunca se sale del marco ni deja ver la app de detrás */
+#movil-off.sube{transition:transform .45s ease-in,clip-path .45s ease-in;transform:translateY(-100%) !important;clip-path:inset(100% 0 0 0 round 28px) !important;}
 #movil-off .mo-desliza{display:none;position:absolute;left:0;right:0;bottom:22px;z-index:3;text-align:center;color:#f0c9a0;font:600 13px Oswald,sans-serif;letter-spacing:.12em;text-transform:uppercase;text-shadow:0 1px 4px #000;animation:moDesliza 1.6s ease-in-out infinite;}
 #movil-off .mo-desliza span{display:block;font-size:22px;line-height:1;}
 #movil-off.boot .mo-desliza{display:block;}
@@ -16151,15 +16152,15 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
   function desbloquear(){
     var o=document.getElementById('movil-off'); if(!o||!o.classList.contains('boot')||o.classList.contains('sube')) return;
     o.classList.add('sube');
-    setTimeout(function(){ o.className=''; o.style.opacity=''; o.style.transform=''; },450);
+    setTimeout(function(){ o.className=''; o.style.opacity=''; o.style.transform=''; o.style.clipPath=''; },450);
   }
   // Gestos sobre la pantalla del coche
   (function(){
     var y0=null, t0=0;
     document.addEventListener('touchstart',function(e){ var o=e.target&&e.target.closest&&e.target.closest('#movil-off.boot'); if(!o) return; y0=e.touches[0].clientY; t0=Date.now(); },{passive:true});
-    document.addEventListener('touchmove',function(e){ if(y0==null) return; var o=document.getElementById('movil-off'); var dy=e.touches[0].clientY-y0; if(o&&dy<0) o.style.transform='translateY('+dy+'px)'; },{passive:true});
+    document.addEventListener('touchmove',function(e){ if(y0==null) return; var o=document.getElementById('movil-off'); var dy=e.touches[0].clientY-y0; if(o&&dy<0){ o.style.transform='translateY('+dy+'px)'; o.style.clipPath='inset('+(-dy)+'px 0 0 0 round 28px)'; } },{passive:true});
     document.addEventListener('touchend',function(e){ if(y0==null) return; var o=document.getElementById('movil-off'); var dy=(e.changedTouches[0]||{}).clientY-y0; y0=null;
-      if(dy<-60 || (dy<-25 && Date.now()-t0<300)) desbloquear(); else if(o){ o.style.transform=''; } });
+      if(dy<-60 || (dy<-25 && Date.now()-t0<300)) desbloquear(); else if(o){ o.style.transform=''; o.style.clipPath=''; } });
     document.addEventListener('click',function(e){ var o=e.target&&e.target.closest&&e.target.closest('#movil-off.boot'); if(!o) return; if(('ontouchstart' in window)&&e.sourceCapabilities&&e.sourceCapabilities.firesTouchEvents) return; desbloquear(); });
   })();
   function alternar(){ if(ocupado) return; if(encendido) apagar(); else encender(); }
