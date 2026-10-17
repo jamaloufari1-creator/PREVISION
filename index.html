@@ -6630,12 +6630,14 @@ function actualizarBtnLeerTodo(){
   }
 }
 
-// Número sobre el icono de la app (pantalla de inicio) — funciona en Android/Chrome siempre
-// y en iPhone si la app está "Añadida a pantalla de inicio" (iOS 16.4+).
+// Número sobre el icono de la app instalada: en PC (Chrome/Edge) y en iPhone (iOS 16.4+).
+// En Android Chrome no lo admite: allí el número lo pone el propio móvil según los avisos sin ver.
 function _actualizarBadgeIconoApp(){
   try{
     if('setAppBadge' in navigator){
       const n = _msgsPendientes.size;
+      // El service worker suma desde aquí los avisos que lleguen con la app cerrada
+      try{ caches.open('ml2-badge').then(c=>c.put('/n', new Response(String(n)))).catch(()=>{}); }catch(e){}
       if(n>0) navigator.setAppBadge(n).catch(()=>{});
       else navigator.clearAppBadge().catch(()=>{});
     }
