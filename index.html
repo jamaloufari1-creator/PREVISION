@@ -15278,12 +15278,12 @@ window._cuMotor=function(dur,modo,fuerza,_ctxExt){ try{
       setTimeout(function(){ try{ var p=document.getElementById('pantalla-inicio'); if(p && getComputedStyle(p).display!=='none' && !window._modoUsuario) window._cuproLlega('bienvenida'); }catch(e){} },500);
     }
     d._proceder=proceder;
-    // Secuencia de entrada: el motor suena 3 s y después empieza el láser (símbolo ML2 y luego la firma)
+    // Secuencia de entrada: el motor arranca, a los 3 s empieza el láser y el motor sigue sonando hasta entrar (símbolo ML2 y luego la firma)
     function arrancaSec(gesto){
       if(window._cuSecT0) return true;
       var h=null, sinSonido=false;
       try{ sinSonido=(typeof appConfig!=='undefined')&&appConfig.sonidos&&appConfig.sonidos.on===false; }catch(e){}
-      try{ if(!sinSonido && window._cuRalentiStart) h=window._cuRalentiStart(3,gesto); }catch(e){}
+      try{ if(!sinSonido && window._cuRalentiStart) h=window._cuRalentiStart(60,gesto); }catch(e){}
       if(!h && !gesto && !sinSonido) return false;   // el navegador aún no deja sonar: espera a que toquen el coche
       window._cuIdle=h; window._cuSecT0=Date.now(); return true;
     }
