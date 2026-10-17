@@ -10774,51 +10774,7 @@ function papeleraDrop(e){
   pap.classList.remove('sobre');
 
   if(tramoDragTipo === 'op' && tramoDragGid && tramoDragOpId){
-    const g = GRUPOS_DATA[tramoDragGid];
-    const op = g.operarios.find(o=>o.id===tramoDragOpId);
-    if(op){
-      const turnoNombre = tramoConfig.turno==='manana'?'Mañana':tramoConfig.turno==='tarde'?'Tarde':'Noche';
-      const nombre = op.apodo||op.nombre;
-      // Modal de confirmación con opciones
-      const opcion = window.confirm(
-        `¿Quitar a ${nombre}?
-
-Acepta = solo del turno de ${turnoNombre}
-Cancela = no quitar`
-      );
-      if(opcion){
-        // Preguntar si de todos los turnos
-        const todosLosTurnos = window.confirm(
-          `¿Quitar a ${nombre} de TODOS los turnos?
-
-Acepta = de todos los turnos
-Cancela = solo del turno de ${turnoNombre}`
-        );
-        if(todosLosTurnos){
-          // Quitar de todos los turnos
-          ['manana','tarde','noche'].forEach(t=>{
-            if(g._turnosOp && g._turnosOp[t]){
-              g._turnosOp[t] = g._turnosOp[t].filter(o=>o.id!==tramoDragOpId);
-            }
-          });
-          g.operarios = g.operarios.filter(o=>o.id!==tramoDragOpId);
-          Object.keys(g.permisos).forEach(k=>{ if(k.startsWith(tramoDragOpId+'|')) delete g.permisos[k]; });
-          mostrarToast(`🗑 ${nombre} eliminado de todos los turnos`);
-        } else {
-          // Quitar solo del turno activo
-          const nuevoArr = g.operarios.filter(o=>o.id!==tramoDragOpId);
-          g.operarios = nuevoArr;
-          if(g._turnosOp) g._turnosOp[tramoConfig.turno] = nuevoArr;
-          // Quitar permisos solo de este turno
-          if(g._turnosPermisos && g._turnosPermisos[tramoConfig.turno]){
-            Object.keys(g._turnosPermisos[tramoConfig.turno]).forEach(k=>{ if(k.startsWith(tramoDragOpId+'|')) delete g._turnosPermisos[tramoConfig.turno][k]; });
-          }
-          Object.keys(g.permisos).forEach(k=>{ if(k.startsWith(tramoDragOpId+'|')) delete g.permisos[k]; });
-          mostrarToast(`🗑 ${nombre} eliminado del turno de ${turnoNombre}`);
-        }
-        renderTramo(); render(); guardar();
-      }
-    }
+    _modalQuitarOperario(tramoDragGid, tramoDragOpId);
   } else if(tramoDragTipo === 'carga' && tramoDragGid && tramoDragCargaId){
     const g = GRUPOS_DATA[tramoDragGid];
     const carga = g.cargas.find(x=>x.id===tramoDragCargaId);
@@ -10830,6 +10786,71 @@ Cancela = solo del turno de ${turnoNombre}`
     }
   }
   tramoDragGid=null; tramoDragOpId=null; tramoDragTipo=null; tramoDragCargaId=null;
+}
+
+// Papelera de operarios: una sola ventana con todas las opciones (antes eran dos confirm seguidos)
+function _modalQuitarOperario(gid, opId){
+  const g = GRUPOS_DATA[gid]; if(!g) return;
+  const op = g.operarios.find(o=>o.id===opId); if(!op) return;
+  const esc = x=>String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const nombre = op.apodo||op.nombre||'operario';
+  const turnoNombre = tramoConfig.turno==='manana'?'Mañana':tramoConfig.turno==='tarde'?'Tarde':'Noche';
+  const lbl = x=>esc((appConfig.grupos&&appConfig.grupos[x])||GRUPO_LABELS[x]||x);
+  const otros = GRUPO_IDS.filter(x=>x!==gid && GRUPOS_DATA[x]);
+  const prev = document.getElementById('modal-quitar-op'); if(prev) prev.remove();
+  const m = document.createElement('div'); m.id = 'modal-quitar-op';
+  m.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:12px;';
+  m.onclick = ev=>{ if(ev.target===m) m.remove(); };
+  const bst = 'text-align:left;padding:10px 12px;font-weight:600;';
+  m.innerHTML = `<div style="background:var(--s1,#12151c);color:var(--text,#fff);border:1px solid var(--border2);border-radius:14px;padding:14px;width:min(420px,96vw);max-height:88vh;overflow:auto;display:flex;flex-direction:column;gap:8px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-family:Oswald,sans-serif;font-size:17px;font-weight:700;">🗑 ${esc(nombre)}</div><button class="btn btn-sm" data-q="x">✕</button></div>
+    <button class="btn" data-q="turno" style="${bst}">🗑 Quitar solo del turno de ${turnoNombre}</button>
+    <button class="btn" data-q="todos" style="${bst}color:var(--red);">🗑 Quitar de TODOS los turnos</button>
+    ${(typeof _puedeBuzon==='function' && _puedeBuzon()) ? `<button class="btn" data-q="salidas" style="${bst}">📤 Enviar a SALIDAS</button>` : ''}
+    ${otros.length ? `<div style="font-size:11px;color:var(--muted2);margin-top:4px;">➡️ Enviar a otro grupo:</div><div style="display:flex;gap:6px;flex-wrap:wrap;">${otros.map(x=>`<button class="btn btn-sm" data-q="g" data-g="${x}" style="min-width:52px;font-weight:700;">${lbl(x)}</button>`).join('')}</div>` : ''}
+  </div>`;
+  m.querySelectorAll('[data-q]').forEach(btn=>btn.onclick = ()=>{
+    const q = btn.dataset.q;
+    m.remove();
+    if(q==='x') return;
+    if(q==='salidas'){ _enviarOpABuzon(gid, opId); return; }
+    if(q==='g'){ _moverOperarioAGrupo(gid, opId, btn.dataset.g); return; }
+    if(q==='todos'){
+      ['manana','tarde','noche'].forEach(t=>{ if(g._turnosOp && g._turnosOp[t]) g._turnosOp[t] = g._turnosOp[t].filter(o=>o.id!==opId); });
+      g.operarios = g.operarios.filter(o=>o.id!==opId);
+      Object.keys(g.permisos).forEach(k=>{ if(k.startsWith(opId+'|')) delete g.permisos[k]; });
+      mostrarToast(`🗑 ${nombre} eliminado de todos los turnos`);
+    } else {
+      const nuevoArr = g.operarios.filter(o=>o.id!==opId);
+      g.operarios = nuevoArr;
+      if(g._turnosOp) g._turnosOp[tramoConfig.turno] = nuevoArr;
+      if(g._turnosPermisos && g._turnosPermisos[tramoConfig.turno]){
+        Object.keys(g._turnosPermisos[tramoConfig.turno]).forEach(k=>{ if(k.startsWith(opId+'|')) delete g._turnosPermisos[tramoConfig.turno][k]; });
+      }
+      Object.keys(g.permisos).forEach(k=>{ if(k.startsWith(opId+'|')) delete g.permisos[k]; });
+      mostrarToast(`🗑 ${nombre} eliminado del turno de ${turnoNombre}`);
+    }
+    renderTramo(); render(); guardarYa();
+  });
+  document.body.appendChild(m);
+}
+function _moverOperarioAGrupo(srcGid, opId, tgtGid){
+  const srcG = GRUPOS_DATA[srcGid], tgtG = GRUPOS_DATA[tgtGid];
+  if(!srcG || !tgtG) return;
+  const opIdx = srcG.operarios.findIndex(o=>o.id===opId); if(opIdx<0) return;
+  const op = srcG.operarios[opIdx];
+  const srcLabel = appConfig.grupos[srcGid]||GRUPO_LABELS[srcGid], tgtLabel = appConfig.grupos[tgtGid]||GRUPO_LABELS[tgtGid];
+  _logCambio((op.apodo||op.nombre)+' movido de '+srcLabel+' a '+tgtLabel);
+  srcG.operarios.splice(opIdx, 1);
+  Object.keys(srcG.permisos).forEach(k=>{ if(k.startsWith(op.id+'|')) delete srcG.permisos[k]; });
+  const newId = nuevoIdOperario(tgtG);
+  const newOp = {...op, id:newId, carga_asignada:''};
+  const h = tgtG.operarios.findIndex(o=>o && o.hueco && !o.nombre);
+  if(h>=0) tgtG.operarios[h] = newOp; else tgtG.operarios.push(newOp);
+  tgtG.cargas.forEach(c=>{ tgtG.permisos[pKey(newId, c.id)] = false; });
+  GRUPOS_DATA[tgtGid]._ts = _ahoraServidor();
+  renderTramo(); render(); guardarYa();
+  mostrarToast(`✓ ${newOp.apodo||newOp.nombre} movido a ${tgtLabel}`);
 }
 
 function ocultarPapelera(){
