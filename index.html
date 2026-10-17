@@ -46,10 +46,25 @@
 })();
 </script>
 <script>
+  // Guarda los avisos/errores de OneSignal para enseñarlos en «Probar notificaciones»
+  window._osErrores = [];
+  ['error','warn'].forEach(function(n){
+    var o = console[n];
+    console[n] = function(){
+      try{
+        var t = Array.prototype.map.call(arguments, function(a){ return a && a.message ? a.message : (typeof a==='string' ? a : (function(){ try{ return JSON.stringify(a); }catch(e){ return String(a); } })()); }).join(' ');
+        if(/onesignal|push|service ?worker|subscri/i.test(t) && window._osErrores.length < 20) window._osErrores.push(t.slice(0,220));
+      }catch(e){}
+      return o.apply(console, arguments);
+    };
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    try{ var t = String((e.reason && (e.reason.message || e.reason)) || ''); if(/onesignal|push|subscri/i.test(t)) window._osErrores.push(t.slice(0,220)); }catch(x){}
+  });
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   OneSignalDeferred.push(async function(OneSignal){
-    await OneSignal.init({
-      appId: "09e3b925-67c1-473f-99ad-2823cec11758",
+    try{ await OneSignal.init({
+      appId: "0d7a9b0a-edbc-45cc-a5e1-67226579807d",
       notifyButton: { enable: false },
       allowLocalhostAsSecureOrigin: true,
       // La app vive en /PREVISION/ (GitHub Pages): el service worker solo puede controlar su propia
@@ -57,7 +72,7 @@
       // y ningún dispositivo quedaba suscrito a los push).
       serviceWorkerPath: location.pathname.replace(/[^/]*$/, '').slice(1) + "sw.js",
       serviceWorkerParam: { scope: location.pathname.replace(/[^/]*$/, '') }
-    });
+    }); }catch(e){ window._osErrores.push('init: '+((e&&e.message)||e)); throw e; }
   });
 </script>
 <style>
@@ -7565,7 +7580,7 @@ function enviarNotificacionNavegador(titulo, cuerpo){
 }
 
 // ── OneSignal: enviar push a un grupo específico ──
-const _OS_APP_ID = '09e3b925-67c1-473f-99ad-2823cec11758';
+const _OS_APP_ID = '0d7a9b0a-edbc-45cc-a5e1-67226579807d';
 const _OS_API_KEY = 'os_v2_app_bhr3sjlhyfdt7gnnfar45qixldcnspyilsbu3mmbzqfjvkh5pfx3lsrwgbiakown4lgwgyiibnmmdld2uda2bwijk6gdhdf72frfopa';
 
 // Envío por la API actual de OneSignal. La clave nueva (os_v2_app_…) solo vale con "Authorization: Key …"
@@ -7663,10 +7678,26 @@ async function _probarPush(){
   paso(!!sub.id, 'ID de suscripción: '+(sub.id||'ninguno'));
   paso(!!sub.token, 'Token del navegador: '+(sub.token?'sí':'no'));
   try{ const tags = await OS.User.getTags(); paso(!!(tags&&tags.grupo), 'Etiqueta grupo: '+((tags&&tags.grupo)||'ninguna')+(window._modoUsuario?' · ahora estás como '+window._modoUsuario:'')); }catch(e){ paso(false,'Etiquetas: '+e); }
+  paso(null, 'Dirección de la app: '+location.origin+location.pathname.replace(/[^/]*$/,''));
+  try{
+    const reg = await navigator.serviceWorker.getRegistration(location.pathname.replace(/[^/]*$/,''));
+    const ps = reg && reg.pushManager ? await reg.pushManager.getSubscription() : null;
+    paso(!!ps, 'Suscripción push del navegador: '+(ps ? (ps.endpoint.split('/')[2]||'sí') : 'ninguna'));
+  }catch(e){ paso(false,'Suscripción push del navegador: error '+((e&&e.message)||e)); }
+  try{
+    const r = await fetch('https://api.onesignal.com/sync/'+_OS_APP_ID+'/web');
+    const t = await r.text(); let origen = '';
+    try{ const j = JSON.parse(t); origen = (j.config && (j.config.origin || (j.config.siteInfo && j.config.siteInfo.proxyOrigin))) || ''; }catch(e){}
+    if(!origen){ const mm = t.match(/"origin"\s*:\s*"([^"]*)"/); origen = mm ? mm[1] : ''; }
+    paso(origen ? origen.replace(/\/$/,'')===location.origin : null, 'Sitio configurado en OneSignal: '+(origen||('HTTP '+r.status+' '+t.slice(0,120))));
+  }catch(e){ paso(null,'Sitio configurado en OneSignal: no se pudo leer ('+((e&&e.message)||e)+')'); }
   if(!sub.id || !sub.optedIn){
-    paso(false,'Este móvil no está suscrito. Pulsa «Activar notificaciones», acepta y vuelve a probar.');
-    if(Notification.permission!=='denied'){ try{ if(Notification.permission==='granted') await OS.User.PushSubscription.optIn(); else await OS.Notifications.requestPermission(); }catch(e){} }
-    return;
+    paso(false,'Este dispositivo no tiene suscripción en OneSignal. Intento crearla…');
+    if(Notification.permission!=='denied'){ try{ if(Notification.permission==='granted') await espera(OS.User.PushSubscription.optIn(), 10000); else await espera(OS.Notifications.requestPermission(), 20000); }catch(e){ paso(false,'Al suscribir: '+((e&&e.message)||e)); } }
+    for(let i=0;i<10 && !sub.id;i++) await new Promise(r=>setTimeout(r,1000));
+    paso(!!sub.id, 'ID tras reintentar: '+(sub.id||'ninguno')+' · token: '+(sub.token?'sí':'no'));
+    (window._osErrores||[]).slice(-8).forEach(t=>paso(false,'Aviso OneSignal: '+t));
+    if(!sub.id){ paso(null,'Copia esto y mándamelo.'); return; }
   }
   async function mandar(extra, nombre){
     try{
