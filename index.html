@@ -6225,9 +6225,29 @@ async function movilFotoSeleccionada(event){
 function _verFoto(img){
   const d = document.createElement('div');
   d.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;';
-  d.innerHTML = '<img style="max-width:100%;max-height:100%;object-fit:contain;">';
-  d.firstChild.src = img.src; d.onclick = ()=>d.remove();
+  const bt = 'padding:10px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.35);background:rgba(20,22,28,.85);color:#fff;font-size:14px;font-weight:700;cursor:pointer;';
+  d.innerHTML = '<img style="max-width:100%;max-height:100%;object-fit:contain;"><div style="position:absolute;left:0;right:0;bottom:calc(18px + env(safe-area-inset-bottom));display:flex;gap:10px;justify-content:center;">'
+    + '<button type="button" data-a="compartir" style="'+bt+'">📤 Compartir</button><button type="button" data-a="guardar" style="'+bt+'">💾 Guardar</button></div>';
+  d.firstChild.src = img.src;
+  d.onclick = (e)=>{ const b = e.target.closest('button'); if(!b){ d.remove(); return; } _exportarFoto(img.src, b.dataset.a); };
   document.body.appendChild(d);
+}
+async function _exportarFoto(src, modo){
+  const nombre = 'foto_'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.jpg';
+  let blob = null;
+  try{ blob = await (await fetch(src)).blob(); }catch(e){ console.warn('Foto exportar:', e); }
+  if(modo==='compartir' && blob){
+    const f = new File([blob], nombre, {type: blob.type||'image/jpeg'});
+    if(navigator.canShare && navigator.canShare({files:[f]})){
+      try{ await navigator.share({files:[f], title:'Foto'}); return; }catch(e){ if(e && e.name==='AbortError') return; }
+    }
+  }
+  const a = document.createElement('a');
+  a.download = nombre;
+  if(blob){ a.href = URL.createObjectURL(blob); setTimeout(()=>URL.revokeObjectURL(a.href), 60000); }
+  else { a.href = src; a.target = '_blank'; a.rel = 'noopener'; }
+  document.body.appendChild(a); a.click(); a.remove();
+  if(modo==='compartir') mostrarToast('Este móvil no permite compartir desde aquí: la foto se ha guardado');
 }
 
 function movilEnviarFoto(url){
