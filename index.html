@@ -7591,14 +7591,16 @@ const _OS_PUSH_URL = 'https://ml2-push.j-oufari.workers.dev';
 async function enviarNotificacionPush(gid, titulo, cuerpo){
   gid = _destSupBase(gid);
   const base = 'https://jamaloufari1-creator.github.io/PREVISION/';
+  // En Android el título se corta a pocas letras, así que va corto («ML2») y quién→a quién va en el texto
+  const texto = titulo + ': ' + cuerpo;
   const cuerpoBase = {
     app_id: _OS_APP_ID,
     target_channel: 'push',
-    headings: { en: titulo, es: titulo },
-    contents: { en: cuerpo, es: cuerpo },
+    headings: { en: 'ML2', es: 'ML2' },
+    contents: { en: texto, es: texto },
     url: base,
     chrome_web_icon: base+'icon-192.png',
-    chrome_web_badge: base+'icon-192.png',
+    chrome_web_badge: base+'badge-96.png',   // icono pequeño de la barra: blanco sobre transparente, si no Android pinta un cuadrado
     firefox_icon: base+'icon-192.png',
     priority: 10,
     ttl: 86400
@@ -7706,7 +7708,7 @@ async function _probarPush(){
       const r = await fetch(_OS_PUSH_URL, { method:'POST',
         headers:{ 'Content-Type':'application/json; charset=utf-8' },
         body: JSON.stringify(Object.assign({ app_id:_OS_APP_ID, target_channel:'push', include_subscription_ids:[sub.id],
-          headings:{en:'Prueba ML2',es:'Prueba ML2'}, contents:{en:nombre,es:nombre}, url:'https://jamaloufari1-creator.github.io/PREVISION/', priority:10, ttl:3600 }, extra)) });
+          headings:{en:'Prueba ML2',es:'Prueba ML2'}, contents:{en:nombre,es:nombre}, url:'https://jamaloufari1-creator.github.io/PREVISION/', chrome_web_icon:'https://jamaloufari1-creator.github.io/PREVISION/icon-192.png', chrome_web_badge:'https://jamaloufari1-creator.github.io/PREVISION/badge-96.png', priority:10, ttl:3600 }, extra)) });
       let t = ''; try{ t = await r.text(); }catch(e){}
       paso(r.ok && !/errors/.test(t), nombre+': HTTP '+r.status+' '+t.slice(0,200));
     }catch(e){ paso(false, nombre+': no se pudo llamar a OneSignal ('+e+')'); }
