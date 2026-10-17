@@ -52,8 +52,11 @@
       appId: "09e3b925-67c1-473f-99ad-2823cec11758",
       notifyButton: { enable: false },
       allowLocalhostAsSecureOrigin: true,
-      serviceWorkerPath: "sw.js",
-      serviceWorkerParam: { scope: "/" }
+      // La app vive en /PREVISION/ (GitHub Pages): el service worker solo puede controlar su propia
+      // carpeta, así que el scope tiene que ser esa carpeta y no "/" (con "/" el registro fallaba
+      // y ningún dispositivo quedaba suscrito a los push).
+      serviceWorkerPath: location.pathname.replace(/[^/]*$/, '').slice(1) + "sw.js",
+      serviceWorkerParam: { scope: location.pathname.replace(/[^/]*$/, '') }
     });
   });
 </script>
@@ -901,7 +904,7 @@ console.log('Supabase conectado correctamente');
     </div>
 
 
-      <div id="fila-resumen" style="display:flex;align-items:flex-start;gap:12px;background:var(--bg);padding:10px 20px 6px;flex-shrink:0;"><div class="tramo-resumen" id="tramo-resumen-embed" style="flex:1;min-width:0;"></div><div id="presencia-panel" style="display:none;"><div id="presencia-lista"></div></div><div id="invitados-tile" class="tramo-stat" onclick="abrirInvitadosHoy()" title="Dispositivos distintos que han entrado hoy como invitado · pulsa para ver el detalle" style="cursor:pointer;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1px;min-width:96px;"><div class="tramo-stat-label" id="inv-etq" style="font-family:Oswald,sans-serif;font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--muted2);">INVITADOS</div><div class="tramo-stat-val" id="inv-num" style="color:var(--blue);text-align:center;">0</div></div><div id="acciones-resumen"></div></div>
+      <div id="fila-resumen" style="display:flex;align-items:flex-start;gap:12px;background:var(--bg);padding:10px 20px 6px;flex-shrink:0;"><div class="tramo-resumen" id="tramo-resumen-embed" style="flex:1;min-width:0;"></div><div id="presencia-panel" style="display:none;"><div id="presencia-lista"></div></div><div id="invitados-tile" class="tramo-stat" onclick="abrirInvitadosHoy()" title="Dispositivos distintos que han entrado hoy como invitado · pulsa para ver el detalle" style="cursor:pointer;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1px;min-width:96px;"><div class="tramo-stat-label" id="inv-etq" style="font-family:Oswald,sans-serif;font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--muted2);">INVITADOS</div><div class="tramo-stat-val" id="inv-num" style="color:var(--blue);text-align:center;">0</div></div><div id="todos-tile" class="tramo-stat" onclick="abrirTodosHoy()" title="Solo admin: dispositivos distintos que han entrado en este turno (todos los grupos, roles, supervisores e invitados) · pulsa para ver el detalle" style="display:none;cursor:pointer;flex:0 0 auto;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1px;min-width:96px;"><div class="tramo-stat-label" style="font-family:Oswald,sans-serif;font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--muted2);">TODOS</div><div class="tramo-stat-val" id="todos-num" style="color:var(--blue);text-align:center;">0</div></div><div id="acciones-resumen"></div></div>
           <div id="barra-equipos" style="padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:8px;background:var(--s1);flex-shrink:0;">
       <div id="barra-eq-centro" style="display:flex;align-items:center;justify-content:center;gap:10px;flex:1 1 auto;min-width:0;">
         <div style="display:flex;align-items:center;gap:8px;margin-right:0;display:none;flex-shrink:0;">
@@ -1293,10 +1296,17 @@ console.log('Supabase conectado correctamente');
       <div style="padding:6px 10px 10px;border-top:1px solid #1e2535;display:flex;flex-direction:column;gap:5px;flex-shrink:0;background:#0a0c10;">
         <!-- Panel emojis -->
         <div id="movil-emoji-panel" style="display:none;flex-wrap:wrap;gap:3px;padding:6px 5px;background:#0d1117;border-radius:10px;max-height:76px;overflow-y:auto;"></div>
+        <!-- Menú del clip: cámara, defecto de coche y galería -->
+        <div id="movil-clip-panel" style="display:none;gap:6px;justify-content:space-around;padding:8px 6px;background:#0d1117;border-radius:10px;">
+          <button onclick="movilClipOpcion('camara')" style="flex:1;background:#151b26;border:1px solid #1e2535;border-radius:10px;color:#dce3ed;padding:8px 4px;cursor:pointer;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:20px;">📷</span>Cámara</button>
+          <button onclick="movilClipOpcion('defecto')" style="flex:1;background:#151b26;border:1px solid #1e2535;border-radius:10px;color:#dce3ed;padding:8px 4px;cursor:pointer;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:20px;">🚗</span>Defecto coche</button>
+          <button onclick="movilClipOpcion('galeria')" style="flex:1;background:#151b26;border:1px solid #1e2535;border-radius:10px;color:#dce3ed;padding:8px 4px;cursor:pointer;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:20px;">🖼️</span>Galería</button>
+        </div>
         <!-- Input fila -->
         <div style="display:flex;gap:6px;align-items:center;background:#111827;border-radius:20px;padding:5px 10px;">
           <button id="movil-emoji-btn" onclick="toggleMovilEmoji()" style="background:none;border:none;cursor:pointer;padding:0;flex-shrink:0;line-height:1;font-style:normal;" title="Emojis"><span style="font-size:20px;">😊</span></button>
-          <button id="movil-foto-btn" onclick="_engancharFotoInput();document.getElementById('movil-foto-input').click();mostrarToast('📷 Abriendo cámara…');" style="background:none;border:none;cursor:pointer;padding:0;flex-shrink:0;line-height:1;" title="Enviar foto"><span style="font-size:19px;">📷</span></button>
+          <button id="movil-clip-btn" onclick="toggleMovilClip(event)" style="background:none;border:none;cursor:pointer;padding:0;flex-shrink:0;line-height:1;" title="Adjuntar"><span style="font-size:19px;">📎</span></button>
+          <button id="movil-foto-btn" onclick="_engancharFotoInput();document.getElementById('movil-foto-input').click();mostrarToast('📷 Abriendo cámara…');" style="display:none;" title="Enviar foto"></button>
           <input type="file" id="movil-foto-input" accept="image/*,android/allowCamera" style="display:none;">
           <input id="movil-reply-inp" placeholder="Escribe un mensaje…"
             style="flex:1;background:transparent;border:none;outline:none;font-size:13px;color:#dce3ed;font-family:IBM Plex Sans,sans-serif;min-width:0;"
@@ -1337,6 +1347,20 @@ console.log('Supabase conectado correctamente');
         <input id="ca-tacto" type="number" inputmode="numeric" placeholder="ej. 21"
           style="background:#1a1e2a;border:1px solid #2a3040;border-radius:6px;padding:8px;color:#dce3ed;font-family:IBM Plex Mono,monospace;font-size:14px;outline:none;">
       </label>
+      <div style="display:flex;gap:8px;">
+        <label style="flex:1;font-size:11px;color:#8fa8c9;display:flex;flex-direction:column;gap:4px;">
+          Hora (si no es ahora)
+          <input id="ca-hora" type="time"
+            style="background:#1a1e2a;border:1px solid #2a3040;border-radius:6px;padding:8px;color:#dce3ed;font-family:IBM Plex Mono,monospace;font-size:14px;outline:none;">
+        </label>
+        <label style="flex:1;font-size:11px;color:#8fa8c9;display:flex;flex-direction:column;gap:4px;">
+          Zona
+          <select id="ca-zona" onchange="_caCambioZona(this.value)" style="background:#1a1e2a;border:1px solid #2a3040;border-radius:6px;padding:8px;color:#dce3ed;font-family:IBM Plex Mono,monospace;font-size:13px;outline:none;">
+            <option value="ramal2">Ramal 2</option>
+            <option value="tramo2">Tramo 2</option>
+          </select>
+        </label>
+      </div>
       <label style="font-size:11px;color:#8fa8c9;display:flex;flex-direction:column;gap:4px;">
         Mandar aviso del defecto a
         <select id="ca-destino" style="background:#1a1e2a;border:1px solid #2a3040;border-radius:6px;padding:8px;color:#dce3ed;font-family:IBM Plex Mono,monospace;font-size:13px;outline:none;"></select>
@@ -1420,6 +1444,75 @@ function nuevoIdOperario(g){
   return nuevo;
 }
 
+// ── Fusión de grupos entre dispositivos ──
+// _baseGrupos guarda cómo estaba cada grupo la última vez que este dispositivo lo sincronizó con la
+// nube (al cargar, al recibir una actualización o al subir). Antes de subir se compara: lo que
+// solo cambió aquí se sube, lo que solo cambió en otro móvil se respeta, y así un móvil con una
+// copia vieja ya no devuelve una carga u operario que otro acaba de borrar.
+window._baseGrupos = null;
+function _fijarBaseGrupos(datosStr){
+  try{ const d = typeof datosStr === 'string' ? JSON.parse(datosStr) : datosStr; if(d && d.GRUPOS_DATA) window._baseGrupos = d.GRUPOS_DATA; }catch(e){}
+}
+function _igual(a, b){
+  if(a === b) return true;
+  if(typeof a !== typeof b || a === null || b === null || typeof a !== 'object') return false;
+  if(Array.isArray(a) !== Array.isArray(b)) return false;
+  if(Array.isArray(a)){
+    if(a.length !== b.length) return false;
+    for(let i=0;i<a.length;i++) if(!_igual(a[i], b[i])) return false;
+    return true;
+  }
+  const ka = Object.keys(a), kb = Object.keys(b);
+  if(ka.length !== kb.length) return false;
+  for(const k of ka) if(!Object.prototype.hasOwnProperty.call(b, k) || !_igual(a[k], b[k])) return false;
+  return true;
+}
+function _mapaPorId(arr){
+  if(!Array.isArray(arr)) return null;
+  const m = new Map();
+  for(const x of arr){
+    if(!x || typeof x !== 'object' || x.id === undefined || x.id === null || m.has(x.id)) return null; // sin id o repetido: no se puede fusionar por id
+    m.set(x.id, x);
+  }
+  return m;
+}
+// Fusión a tres bandas: base = última versión común, local = la de este móvil, remoto = la de la nube.
+function _fusionar3(base, local, remoto){
+  if(_igual(local, base)) return remoto;   // aquí no se tocó: manda la nube
+  if(_igual(remoto, base)) return local;   // en la nube no se tocó: manda lo de aquí
+  if(_igual(local, remoto)) return local;
+  // Listas de cosas con id (operarios, cargas...): fusionar elemento a elemento
+  const mb = _mapaPorId(base), ml = _mapaPorId(local), mr = _mapaPorId(remoto);
+  if(mb && ml && mr){
+    const ordenLocalCambio = !_igual(local.map(x=>x.id), base.map(x=>x.id));
+    const orden = (ordenLocalCambio ? local : remoto).map(x=>x.id);
+    (ordenLocalCambio ? remoto : local).forEach(x=>{ if(!orden.includes(x.id)) orden.push(x.id); });
+    const res = [];
+    for(const id of orden){
+      const b = mb.get(id), l = ml.get(id), r = mr.get(id);
+      if(b === undefined){ const v = l !== undefined ? l : r; if(v !== undefined) res.push(v); continue; }   // nuevo (si los dos crearon el mismo id, se queda el de aquí)
+      if(l === undefined){ if(r !== undefined && !_igual(r, b)) res.push(r); continue; }   // borrado aquí (salvo que otro lo cambiara)
+      if(r === undefined){ if(!_igual(l, b)) res.push(l); continue; }                      // borrado en otro móvil
+      res.push(_fusionar3(b, l, r));
+    }
+    return res;
+  }
+  // Objetos normales: campo a campo
+  if(local && remoto && typeof local === 'object' && typeof remoto === 'object' && !Array.isArray(local) && !Array.isArray(remoto)){
+    const b = (base && typeof base === 'object' && !Array.isArray(base)) ? base : {};
+    const res = {};
+    const claves = new Set([...Object.keys(local), ...Object.keys(remoto)]);
+    for(const k of claves){
+      const enL = k in local, enR = k in remoto, enB = k in b;
+      if(enL && enR) res[k] = _fusionar3(b[k], local[k], remoto[k]);
+      else if(enL){ if(!enB || !_igual(local[k], b[k])) res[k] = local[k]; }
+      else if(enR){ if(!enB || !_igual(remoto[k], b[k])) res[k] = remoto[k]; }
+    }
+    return res;
+  }
+  return local; // los dos cambiaron lo mismo: gana el último que guarda (este)
+}
+
 // Protección: antes de subir a la nube, comprobar si ALGUIEN MÁS ya puso una secuencia de coche
 // más reciente que la nuestra (por ejemplo, el supervisor la acaba de escribir en otro dispositivo).
 // Si esta pestaña no ha tocado el último coche hace poco, se respeta la versión de la nube.
@@ -1427,7 +1520,7 @@ async function _protegerUltimoCocheAntesDeGuardar(){
   const mi = window._modoUsuario||grupoActivo;
   const esSupervisor = mi==='supervisor'||mi==='admin';
   const editadoAqui = window._ultimoCocheEditadoLocal && (Date.now() - window._ultimoCocheEditadoLocal < 8000);
-  if(editadoAqui) return false; // esta pestaña acaba de tocarlo: su copia manda, no hace falta comprobar
+  // Si esta pestaña acaba de tocar el último coche, su copia de la secuencia manda (pero los grupos se fusionan igual)
   if(!window._fbCargar) return false;
   try{
     const remoto = await window._fbCargar();
@@ -1438,7 +1531,7 @@ async function _protegerUltimoCocheAntesDeGuardar(){
       // sesión (grupos, conductor/servicio/eléctrico, invitado) SIEMPRE refleja tal cual lo que
       // haya en la nube al guardar cualquier otra cosa (una carga, un mensaje, etc.) — así nunca
       // puede arrastrar sin querer una copia vieja por encima de lo que puso el supervisor.
-      if(_d.ultimoCoche && (esSupervisor ? (_d.ultimoCoche.ts||0) > (ultimoCoche.ts||0) : true)){
+      if(!editadoAqui && _d.ultimoCoche && (esSupervisor ? (_d.ultimoCoche.ts||0) > (ultimoCoche.ts||0) : true)){
         ultimoCoche.tactoRef = _d.ultimoCoche.tactoRef;
         ultimoCoche.cocheRef = _d.ultimoCoche.cocheRef;
         ultimoCoche.turno = _d.ultimoCoche.turno || null;
@@ -1452,14 +1545,14 @@ async function _protegerUltimoCocheAntesDeGuardar(){
         _tactosNextId = Math.max(_tactosNextId, maxId + 1);
         cambio = true;
       }
-      if(_d.previsionTurno && (esSupervisor ? (_d.previsionTurno.ts||0) > (previsionTurno.ts||0) : true)){
+      if(!editadoAqui && _d.previsionTurno && (esSupervisor ? (_d.previsionTurno.ts||0) > (previsionTurno.ts||0) : true)){
         if(_d.previsionTurno.produccionPorTurno) previsionTurno.produccionPorTurno = _d.previsionTurno.produccionPorTurno;
         if(_d.previsionTurno.perdidosPorTurno) previsionTurno.perdidosPorTurno = _d.previsionTurno.perdidosPorTurno;
         previsionTurno.perdidosPulmonPorTurno = _d.previsionTurno.perdidosPulmonPorTurno || { manana: null, tarde: null, noche: null };
         previsionTurno.ts = _d.previsionTurno.ts;
         cambio = true;
       }
-      if(_d.ultimoCochePulmon && (esSupervisor ? (_d.ultimoCochePulmon.ts||0) > (ultimoCochePulmon.ts||0) : true)){
+      if(!editadoAqui && _d.ultimoCochePulmon && (esSupervisor ? (_d.ultimoCochePulmon.ts||0) > (ultimoCochePulmon.ts||0) : true)){
         ultimoCochePulmon.tactoRef = _d.ultimoCochePulmon.tactoRef;
         ultimoCochePulmon.cocheRef = _d.ultimoCochePulmon.cocheRef;
         ultimoCochePulmon.turno = _d.ultimoCochePulmon.turno || null;
@@ -1474,14 +1567,34 @@ async function _protegerUltimoCocheAntesDeGuardar(){
       // Los grupos que NO se están editando ahora mismo en este móvil: si la nube tiene algo
       // más nuevo de ellos, se adopta antes de guardar — así este dispositivo nunca sube por
       // accidente una copia vieja de un grupo ajeno (ej. un permiso ya borrado que reaparece).
+      // Con la versión base (lo último sincronizado) se fusiona TAMBIÉN el grupo que se está editando
+      // aquí: si dos personas tocan el mismo grupo a la vez, se conservan los cambios de las dos.
+      let _cambioActivo = false;
       GRUPO_IDS.forEach(gid=>{
-        if(gid === grupoActivo) return; // el que se está tocando aquí ahora, no se toca
         const gRemoto = _d.GRUPOS_DATA && _d.GRUPOS_DATA[gid];
-        if(gRemoto && (gRemoto._ts||0) > (GRUPOS_DATA[gid]._ts||0)){
+        if(!gRemoto || !GRUPOS_DATA[gid]) return;
+        const gBase = window._baseGrupos && window._baseGrupos[gid];
+        if(gBase){
+          if(_igual(gRemoto, gBase)) return; // nadie más lo cambió
+          const fusion = _fusionar3(gBase, GRUPOS_DATA[gid], gRemoto);
+          if(!_igual(fusion, GRUPOS_DATA[gid])){
+            if(gid === grupoActivo){ fusion._ts = _ahoraServidor(); _cambioActivo = true; }
+            GRUPOS_DATA[gid] = fusion;
+            cambio = true;
+          }
+          return;
+        }
+        if(gid === grupoActivo) return; // sin base conocida: el que se está tocando aquí ahora, no se toca
+        if((gRemoto._ts||0) > (GRUPOS_DATA[gid]._ts||0)){
           GRUPOS_DATA[gid] = gRemoto;
           cambio = true;
         }
       });
+      if(_cambioActivo){
+        const a = document.activeElement;
+        const escribiendo = a && (a.tagName==='INPUT' || a.tagName==='TEXTAREA' || a.tagName==='SELECT' || a.isContentEditable);
+        if(!escribiendo){ try{ cambiarGrupo(grupoActivo); }catch(e){} }
+      }
       // El histórico NUNCA se sobrescribe: se UNEN las entradas de la nube con las de aquí,
       // así ningún dispositivo puede borrar sin querer un día archivado por otro.
       if(_d.historicoCoches){
@@ -1563,6 +1676,7 @@ function guardar(){
       if(seActualizo){ localStorage.setItem(LS_KEY, estadoFinal); window._estadoGuardado = estadoFinal; }
       if(window._fbGuardar && estadoFinal){
         window._fbGuardar(estadoFinal).then(()=>{
+          _fijarBaseGrupos(estadoFinal);
           if(estadoFinal===window._estadoGuardado){ try{ localStorage.removeItem(LS_KEY+'_pend'); }catch(e){} }
           const hora = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
           if(elHora) elHora.textContent = '🕐 '+hora;
@@ -1594,6 +1708,7 @@ function guardarYa(){
         estadoFinal = window._estadoGuardado;
       }
       window._fbGuardar(estadoFinal).then(()=>{
+        _fijarBaseGrupos(estadoFinal);
         if(estadoFinal===window._estadoGuardado){ try{ localStorage.removeItem(LS_KEY+'_pend'); }catch(e){} }
         const hora = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
         if(elHora) elHora.textContent = '🕐 '+hora;
@@ -5457,7 +5572,11 @@ function iniciarPresencia(){
   // Limpiar al cerrar
   window.addEventListener('beforeunload',()=>{
     // Guardar estado final en Firebase al cerrar
-    if(window._fbGuardar && window._estadoGuardado){
+    // Solo si quedó un cambio de este móvil SIN subir. Antes se subía siempre la última copia
+    // de este móvil al cerrar, y eso devolvía datos viejos por encima de lo que otros habían cambiado.
+    let _pendiente = false;
+    try{ _pendiente = localStorage.getItem(LS_KEY+'_pend')==='1'; }catch(e){}
+    if(_pendiente && window._fbGuardar && window._estadoGuardado){
       try{ window._fbGuardar(window._estadoGuardado); }catch(e){}
     }
     try{ if(window._sbPresencia) window._sbPresencia.borrar(gid); }catch(e){}
@@ -5502,8 +5621,15 @@ function _invTurnosRecientes(){
   return [c,a,b].map(x=>({turno:x.turno, fecha:x.fecha, id:x.fecha+':'+x.turno}));
 }
 function _procesarFilasInvitados(rows){
-  const rec=_invTurnosRecientes(), ids=rec.map(x=>x.id); let borr = 0; const lista = [];
+  const rec=_invTurnosRecientes(), ids=rec.map(x=>x.id); let borr = 0; const lista = [], acc = [];
   (rows||[]).forEach(p=>{
+    if(p && typeof p.gid==='string' && p.gid.indexOf('acc:')===0){
+      const pa=p.gid.split(':'), sa=pa[1]+':'+pa[2];
+      if(pa.length!==4 || ids.indexOf(sa)<0){ if(borr<20 && window._sbPresencia){ borr++; Promise.resolve(window._sbPresencia.borrar(p.gid)).catch(()=>{}); } return; }
+      let da = {}; try{ da = JSON.parse(p.label) || {}; }catch(e){}
+      acc.push({k:p.gid, r:da.r||'?', h:da.h||p.ts, ts:p.ts, sid:sa});
+      return;
+    }
     if(!p || typeof p.gid!=='string' || p.gid.indexOf('inv:')!==0) return;
     const pt=p.gid.split(':'), sid=pt[1]+':'+pt[2];
     if(pt.length!==4 || ids.indexOf(sid)<0){ if(borr<20 && window._sbPresencia){ borr++; Promise.resolve(window._sbPresencia.borrar(p.gid)).catch(()=>{}); } return; }
@@ -5511,6 +5637,7 @@ function _procesarFilasInvitados(rows){
     lista.push({k:p.gid, g:d.g||null, h:d.h||p.ts, ts:p.ts, sid:sid});
   });
   window._invDia = lista;
+  window._accDia = acc;
   try{ _renderInvitadosTile(); }catch(e){}
 }
 function _presenciaPublicarTurno(){
@@ -5521,6 +5648,17 @@ function _presenciaPublicarTurno(){
     if(me && window._sbPresencia){
       Promise.resolve(window._sbPresencia.guardar(me.key, {ts:Date.now(), label:'sup', escribiendo:false})).catch(()=>{});
       window._presKeyPub = me.key;
+    }
+    // Registro de entradas de TODOS (para el marcador del admin): una fila por dispositivo, rol y turno que
+    // no se borra al salir. Los invitados ya tienen la suya ("inv:"), así que no se duplican.
+    const _rolAcc = window._modoUsuario;
+    if(_rolAcc && _rolAcc !== 'admin' && _rolAcc !== 'invitado' && window._sbPresencia && (!window._accUltimo || Date.now()-window._accUltimo > 30000 || window._accRolUlt !== _rolAcc)){
+      window._accUltimo = Date.now(); window._accRolUlt = _rolAcc;
+      const _tc=_invTurnoActual(), hoy=_tc.fecha+':'+_tc.turno;
+      const rolK = _rolAcc==='supervisor' ? 'sup-'+(window._perfilSupervisor||'rtf') : _rolAcc;
+      let h = 0;
+      try{ h = +localStorage.getItem('acc_h_'+hoy+'_'+rolK) || 0; if(!h){ h = Date.now(); localStorage.setItem('acc_h_'+hoy+'_'+rolK, String(h)); } }catch(e){ h = Date.now(); }
+      Promise.resolve(window._sbPresencia.guardar('acc:'+hoy+':'+_idDispositivoInv()+'-'+rolK.replace(/:/g,''), {ts:Date.now(), label:JSON.stringify({r:rolK, h}), escribiendo:false})).catch(()=>{});
     }
     if(window._modoUsuario === 'invitado' && window._sbPresencia){
       const _tc=_invTurnoActual(), hoy=_tc.fecha+':'+_tc.turno; let h = 0;
@@ -5588,8 +5726,51 @@ function _renderPresenciaPanel(){
 }
 function _invActuales(){ const c=_invTurnoActual(), id=c.fecha+':'+c.turno; return (window._invDia||[]).filter(x=>x.sid===id); }
 function _renderInvitadosTile(){
+  const tt = document.getElementById('todos-tile');
+  if(tt){
+    const ver = esAdminInicio();
+    tt.style.display = ver ? 'flex' : 'none';
+    const tn = document.getElementById('todos-num'); if(ver && tn) tn.textContent = _todosActuales().length;
+  }
   const num = document.getElementById('inv-num'); if(!num) return;
   num.textContent = _invActuales().length;
+}
+// Marcador TODOS (solo admin): entradas de este turno de grupos, roles y supervisores + invitados
+function _todosActuales(){
+  const c=_invTurnoActual(), id=c.fecha+':'+c.turno;
+  return (window._accDia||[]).filter(x=>x.sid===id).concat(_invActuales().map(x=>({k:x.k, r:'invitado', h:x.h, ts:x.ts, sid:x.sid})));
+}
+function _nombreRolAcc(r){
+  if(r==='invitado') return 'Invitados';
+  if(/^g\d+$/.test(r)) return 'G'+((appConfig.grupos&&appConfig.grupos[r])||r.slice(1));
+  if(r.indexOf('sup-')===0){ try{ return nombrePerfil(r.slice(4)); }catch(e){ return 'Supervisor'; } }
+  try{ return String(rolVisorLabel(r)||r).replace(/^[^A-Za-zÁÉÍÓÚÑ0-9]+/,'').trim(); }catch(e){ return r; }
+}
+function abrirTodosHoy(){
+  if(!esAdminInicio()) return;
+  const prev = document.getElementById('modal-todos-hoy'); if(prev) prev.remove();
+  const ahora = Date.now(), lista = _todosActuales();
+  const NT = {manana:'🌅 Mañana', tarde:'🌆 Tarde', noche:'🌙 Noche'};
+  const hh = ms => { const d = new Date(ms), p = n=>String(n).padStart(2,'0'); return p(d.getHours())+':'+p(d.getMinutes()); };
+  const grupos = {};
+  lista.forEach(x=>{ (grupos[x.r] = grupos[x.r] || []).push(x); });
+  const filas = Object.keys(grupos).sort((a,b)=> grupos[b].length - grupos[a].length || _nombreRolAcc(a).localeCompare(_nombreRolAcc(b))).map(k=>{
+    const arr = grupos[k].sort((a,b)=>a.h-b.h);
+    const chips = arr.map(x=>{ const o = ahora-x.ts < 45000; return `<span style="font-family:IBM Plex Mono,monospace;font-size:11px;padding:2px 7px;border-radius:999px;border:1px solid ${o?'var(--green)':'var(--border2)'};color:${o?'var(--green)':'var(--muted2)'};">${hh(x.h)}</span>`; }).join(' ');
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border2);border-radius:12px;background:var(--s2);">
+      <div style="flex:0 0 auto;min-width:46px;text-align:center;font-family:Oswald,sans-serif;font-size:28px;font-weight:700;color:var(--blue);line-height:1;">${arr.length}</div>
+      <div style="flex:1;min-width:0;"><div style="font-family:Oswald,sans-serif;font-size:14px;letter-spacing:.06em;color:var(--text);">${_nombreRolAcc(k)}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;">${chips}</div></div></div>`;
+  }).join('');
+  const m = document.createElement('div'); m.id = 'modal-todos-hoy';
+  m.style.cssText = 'position:fixed;inset:0;z-index:99996;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:12px;';
+  m.onclick = ev=>{ if(ev.target===m) m.remove(); };
+  m.innerHTML = `<div style="background:var(--s1,#12151c);color:var(--text,#fff);border:1px solid var(--border2);border-radius:16px;padding:16px;width:min(460px,96vw);max-height:88vh;overflow:auto;">
+    <div style="font-family:Oswald,sans-serif;font-size:18px;font-weight:700;letter-spacing:.08em;color:var(--blue);text-align:center;">👥 TODOS · ${NT[_invTurnoActual().turno]} EN VIVO</div>
+    <div style="font-family:IBM Plex Mono,monospace;font-size:11px;color:var(--muted2);text-align:center;margin:4px 0 12px;">${lista.length} entrada${lista.length===1?'':'s'} en este turno (un dispositivo por grupo o rol) · la hora es la de la primera entrada · en verde, conectados ahora</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">${filas || '<div style="color:var(--muted2);text-align:center;padding:14px;">En este turno no ha entrado nadie todavía.</div>'}</div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px;"><button class="btn btn-sm" onclick="document.getElementById('modal-todos-hoy').remove()">Cerrar</button></div></div>`;
+  document.body.appendChild(m);
 }
 function _invAlternarTurno(i){ const e=document.getElementById('inv-turno-'+i); if(e) e.style.display = (e.style.display==='none') ? 'flex' : 'none'; const f=document.getElementById('inv-flecha-'+i); if(f) f.textContent = (e && e.style.display!=='none') ? '▴' : '▾'; }
 function abrirInvitadosHoy(){
@@ -5828,6 +6009,34 @@ function movilEnviarMensaje(){
   movilEnviarConv();
 }
 
+// ── Clip 📎 del teléfono: cámara, defecto de coche o galería ──
+function toggleMovilClip(ev){
+  if(ev) ev.stopPropagation();
+  const p = document.getElementById('movil-clip-panel');
+  if(!p) return;
+  const abrir = p.style.display === 'none';
+  p.style.display = abrir ? 'flex' : 'none';
+  if(abrir){ const em = document.getElementById('movil-emoji-panel'); if(em) em.style.display = 'none'; }
+}
+function movilClipOpcion(op){
+  const p = document.getElementById('movil-clip-panel');
+  if(p) p.style.display = 'none';
+  if(op === 'camara'){
+    const b = document.getElementById('movil-foto-btn'); if(b) b.click(); // abre la cámara dentro de la app
+  } else if(op === 'galeria'){
+    _engancharFotoInput();
+    const i = document.getElementById('movil-foto-input');
+    if(i){ i.removeAttribute('capture'); i.click(); }
+  } else if(op === 'defecto'){
+    abrirCuentaAtras();
+    // El aviso va por defecto a la conversación que está abierta
+    const sel = document.getElementById('ca-destino');
+    const dest = (typeof _movilConvGid !== 'undefined' && _movilConvGid) ? _movilConvGid : 'todos';
+    if(sel && [...sel.options].some(o=>o.value===dest)) sel.value = dest;
+    setTimeout(()=>{ const s2 = document.getElementById('ca-secuencia'); if(s2) s2.focus(); }, 50);
+  }
+}
+
 // ── Enviar foto (cámara o galería) ──
 // La tabla de mensajes no tiene columna para imágenes, así que se guarda una URL
 // marcada dentro del propio texto (MARCA_FOTO) — no hace falta tocar la base de datos.
@@ -5859,7 +6068,7 @@ function _iniciarCuentaEnBurbuja(msgId, datos){
     if(barraEl) barraEl.style.width = Math.max(0,(restanteMs/1000)/datos.segTot*100)+'%';
     const transcurrido = datos.segTot - restanteMs/1000;
     const tactosAv = Math.floor(transcurrido/TIEMPO_TACTO_SEG);
-    const tactoActual = Math.min(TACTO_SUPERVISOR, datos.tIni+tactosAv);
+    const tactoActual = Math.min(datos.tFin||TACTO_SUPERVISOR, datos.tIni+tactosAv);
     if(tactoEl) tactoEl.textContent = '📍 Tacto '+tactoActual;
   };
   tick();
@@ -5894,7 +6103,7 @@ function _burbujaContenidoHtml(texto, msgId, msgGid){
     if(datos.reparado){
       return `<div style="display:flex;flex-direction:column;gap:6px;min-width:190px;">
         <div style="font-size:12px;color:#dce3ed;">⚠️ <b>${datos.def}</b></div>
-        <div style="font-size:10px;color:#8fa8c9;">${datos.seq?('Coche '+datos.seq+' · '):''}tacto ${datos.tIni} → ${TACTO_SUPERVISOR}</div>
+        <div style="font-size:10px;color:#8fa8c9;">${datos.seq?('Coche '+datos.seq+' · '):''}tacto ${datos.tIni} → ${datos.tFin||TACTO_SUPERVISOR}${datos.zona==='tramo2'?' (Tramo 2)':''}</div>
         <div style="text-align:center;padding:6px 0;color:#7fd88f;font-family:Oswald,sans-serif;font-weight:700;font-size:16px;">✅ REPARADO</div>
       </div>`;
     }
@@ -5902,7 +6111,7 @@ function _burbujaContenidoHtml(texto, msgId, msgGid){
     const defEsc = String(datos.def||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
     return `<div id="cab-wrap-${msgId}" style="display:flex;flex-direction:column;gap:6px;min-width:190px;">
       <div style="font-size:12px;color:#dce3ed;">⚠️ <b>${datos.def}</b></div>
-      <div style="font-size:10px;color:#8fa8c9;">${datos.seq?('Coche '+datos.seq+' · '):''}tacto ${datos.tIni} → ${TACTO_SUPERVISOR}</div>
+      <div style="font-size:10px;color:#8fa8c9;">${datos.seq?('Coche '+datos.seq+' · '):''}tacto ${datos.tIni} → ${datos.tFin||TACTO_SUPERVISOR}${datos.zona==='tramo2'?' (Tramo 2)':''}</div>
       <div id="cab-reloj-${msgId}" style="font-family:Oswald,sans-serif;font-size:26px;font-weight:700;color:#e0a46f;text-align:center;letter-spacing:.03em;">--:--</div>
       <div id="cab-tacto-${msgId}" style="font-size:11px;color:#7fd88f;text-align:center;font-weight:700;font-family:IBM Plex Mono,monospace;"></div>
       <div style="width:100%;height:7px;background:#0d0f16;border-radius:4px;overflow:hidden;">
@@ -7157,7 +7366,7 @@ function mostrarMovil(msg){
 // ── Notificaciones ──
 function pedirPermisoNotificaciones(forzado){
   try{
-    if(!forzado && localStorage.getItem('notifPedidas')==='1') return; // ya se preguntó una vez en este dispositivo
+    if(!forzado && localStorage.getItem('notifPedidas')==='1'){ _actualizarBotonNotif(); return; } // ya se preguntó una vez en este dispositivo: queda el botón para activarlas
     localStorage.setItem('notifPedidas','1');
     if(window.OneSignalDeferred){
       window.OneSignalDeferred.push(async function(OneSignal){
@@ -7170,6 +7379,73 @@ function pedirPermisoNotificaciones(forzado){
       Notification.requestPermission();
     }
   }catch(e){ console.warn('OneSignal permiso error:', e); }
+  _actualizarBotonNotif();
+}
+
+// Botón "Activar notificaciones": aparece mientras el dispositivo no esté suscrito al push, para
+// poder pedir el permiso con un toque (iPhone solo lo permite tras un toque del usuario).
+function _esIosSinInstalar(){
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const instalada = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  return ios && !instalada;
+}
+function _botonNotif(){
+  let b = document.getElementById('btn-activar-notif');
+  if(!b){
+    b = document.createElement('div');
+    b.id = 'btn-activar-notif';
+    b.style.cssText = 'display:none;position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:3000;padding:8px 14px;border-radius:20px;background:#c2773a;color:#fff;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.4);cursor:pointer;max-width:90vw;text-align:center;';
+    b.onclick = _activarNotifDesdeBoton;
+    document.body.appendChild(b);
+  }
+  return b;
+}
+function _actualizarBotonNotif(){
+  try{
+    const b = _botonNotif();
+    if(_esIosSinInstalar()){
+      b.textContent = '🔔 Para recibir avisos: Compartir → Añadir a pantalla de inicio';
+      b.style.display = 'block';
+      return;
+    }
+    if(!('Notification' in window)){ b.style.display = 'none'; return; }
+    if(Notification.permission === 'denied'){
+      b.textContent = '🔕 Notificaciones bloqueadas: actívalas en los ajustes del navegador';
+      b.style.display = 'block';
+      return;
+    }
+    if(Notification.permission === 'default'){
+      b.textContent = '🔔 Activar notificaciones';
+      b.style.display = 'block';
+      return;
+    }
+    // Permiso concedido: comprobar que OneSignal también tiene la suscripción activa
+    b.style.display = 'none';
+    if(window.OneSignalDeferred){
+      window.OneSignalDeferred.push(async function(OneSignal){
+        if(!OneSignal.User.PushSubscription.optedIn){
+          b.textContent = '🔔 Activar notificaciones';
+          b.style.display = 'block';
+        }
+      });
+    }
+  }catch(e){ console.warn('botón notificaciones:', e); }
+}
+function _activarNotifDesdeBoton(){
+  const b = _botonNotif();
+  if(_esIosSinInstalar() || ('Notification' in window && Notification.permission === 'denied')){ b.style.display = 'none'; return; }
+  try{
+    if(window.OneSignalDeferred){
+      window.OneSignalDeferred.push(async function(OneSignal){
+        if(Notification.permission === 'granted') await OneSignal.User.PushSubscription.optIn();
+        else await OneSignal.Notifications.requestPermission();
+        if(window._modoUsuario && window._modoUsuario !== 'admin') await OneSignal.User.addTag('grupo', window._modoUsuario);
+        _actualizarBotonNotif();
+      });
+    } else if('Notification' in window){
+      Notification.requestPermission().then(_actualizarBotonNotif);
+    }
+  }catch(e){ console.warn('OneSignal activar error:', e); }
 }
 
 function enviarNotificacionNavegador(titulo, cuerpo){
@@ -7414,12 +7690,7 @@ function guardarAgenda(){
   if(!op.ausencias) op.ausencias = [];
   op.ausencias.push({motivo, fecha, fechaFin, horaIni, horaFin, nota, ts:Date.now()});
   op.ausencias.sort((a,b)=>a.fecha.localeCompare(b.fecha));
-  guardar();
-  // Forzar escritura inmediata en Supabase con el estado ya actualizado
-  clearTimeout(_guardarTimeout);
-  setTimeout(()=>{
-    if(window._fbGuardar && window._estadoGuardado) window._fbGuardar(window._estadoGuardado);
-  }, 50);
+  guardarYa(); // escritura inmediata en Supabase (con la fusión de cambios de otros móviles)
   renderAgendaLista(op);
   renderOpList();
   mostrarToast('📅 Ausencia registrada');
@@ -7433,10 +7704,7 @@ function eliminarAusencia(idx){
   const op = GRUPOS_DATA[_agendaGid].operarios.find(o=>o.id===_agendaOpId);
   if(!op || !op.ausencias) return;
   op.ausencias.splice(idx,1);
-  guardar();
-  // Forzar escritura inmediata en Supabase
-  clearTimeout(_guardarTimeout);
-  setTimeout(()=>{ if(window._fbGuardar && window._estadoGuardado) window._fbGuardar(window._estadoGuardado); }, 50);
+  guardarYa(); // escritura inmediata en Supabase (con la fusión de cambios de otros móviles)
   // Limpiar todos los avisos de agenda del ticker y regenerar
   const track = document.getElementById('avisos-track');
   if(track) track.querySelectorAll('.agenda-item').forEach(el=>el.remove());
@@ -10568,51 +10836,7 @@ function papeleraDrop(e){
   pap.classList.remove('sobre');
 
   if(tramoDragTipo === 'op' && tramoDragGid && tramoDragOpId){
-    const g = GRUPOS_DATA[tramoDragGid];
-    const op = g.operarios.find(o=>o.id===tramoDragOpId);
-    if(op){
-      const turnoNombre = tramoConfig.turno==='manana'?'Mañana':tramoConfig.turno==='tarde'?'Tarde':'Noche';
-      const nombre = op.apodo||op.nombre;
-      // Modal de confirmación con opciones
-      const opcion = window.confirm(
-        `¿Quitar a ${nombre}?
-
-Acepta = solo del turno de ${turnoNombre}
-Cancela = no quitar`
-      );
-      if(opcion){
-        // Preguntar si de todos los turnos
-        const todosLosTurnos = window.confirm(
-          `¿Quitar a ${nombre} de TODOS los turnos?
-
-Acepta = de todos los turnos
-Cancela = solo del turno de ${turnoNombre}`
-        );
-        if(todosLosTurnos){
-          // Quitar de todos los turnos
-          ['manana','tarde','noche'].forEach(t=>{
-            if(g._turnosOp && g._turnosOp[t]){
-              g._turnosOp[t] = g._turnosOp[t].filter(o=>o.id!==tramoDragOpId);
-            }
-          });
-          g.operarios = g.operarios.filter(o=>o.id!==tramoDragOpId);
-          Object.keys(g.permisos).forEach(k=>{ if(k.startsWith(tramoDragOpId+'|')) delete g.permisos[k]; });
-          mostrarToast(`🗑 ${nombre} eliminado de todos los turnos`);
-        } else {
-          // Quitar solo del turno activo
-          const nuevoArr = g.operarios.filter(o=>o.id!==tramoDragOpId);
-          g.operarios = nuevoArr;
-          if(g._turnosOp) g._turnosOp[tramoConfig.turno] = nuevoArr;
-          // Quitar permisos solo de este turno
-          if(g._turnosPermisos && g._turnosPermisos[tramoConfig.turno]){
-            Object.keys(g._turnosPermisos[tramoConfig.turno]).forEach(k=>{ if(k.startsWith(tramoDragOpId+'|')) delete g._turnosPermisos[tramoConfig.turno][k]; });
-          }
-          Object.keys(g.permisos).forEach(k=>{ if(k.startsWith(tramoDragOpId+'|')) delete g.permisos[k]; });
-          mostrarToast(`🗑 ${nombre} eliminado del turno de ${turnoNombre}`);
-        }
-        renderTramo(); render(); guardar();
-      }
-    }
+    _modalQuitarOperario(tramoDragGid, tramoDragOpId);
   } else if(tramoDragTipo === 'carga' && tramoDragGid && tramoDragCargaId){
     const g = GRUPOS_DATA[tramoDragGid];
     const carga = g.cargas.find(x=>x.id===tramoDragCargaId);
@@ -10624,6 +10848,71 @@ Cancela = solo del turno de ${turnoNombre}`
     }
   }
   tramoDragGid=null; tramoDragOpId=null; tramoDragTipo=null; tramoDragCargaId=null;
+}
+
+// Papelera de operarios: una sola ventana con todas las opciones (antes eran dos confirm seguidos)
+function _modalQuitarOperario(gid, opId){
+  const g = GRUPOS_DATA[gid]; if(!g) return;
+  const op = g.operarios.find(o=>o.id===opId); if(!op) return;
+  const esc = x=>String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const nombre = op.apodo||op.nombre||'operario';
+  const turnoNombre = tramoConfig.turno==='manana'?'Mañana':tramoConfig.turno==='tarde'?'Tarde':'Noche';
+  const lbl = x=>esc((appConfig.grupos&&appConfig.grupos[x])||GRUPO_LABELS[x]||x);
+  const otros = GRUPO_IDS.filter(x=>x!==gid && GRUPOS_DATA[x]);
+  const prev = document.getElementById('modal-quitar-op'); if(prev) prev.remove();
+  const m = document.createElement('div'); m.id = 'modal-quitar-op';
+  m.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:12px;';
+  m.onclick = ev=>{ if(ev.target===m) m.remove(); };
+  const bst = 'text-align:left;padding:10px 12px;font-weight:600;';
+  m.innerHTML = `<div style="background:var(--s1,#12151c);color:var(--text,#fff);border:1px solid var(--border2);border-radius:14px;padding:14px;width:min(420px,96vw);max-height:88vh;overflow:auto;display:flex;flex-direction:column;gap:8px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-family:Oswald,sans-serif;font-size:17px;font-weight:700;">🗑 ${esc(nombre)}</div><button class="btn btn-sm" data-q="x">✕</button></div>
+    <button class="btn" data-q="turno" style="${bst}">🗑 Quitar solo del turno de ${turnoNombre}</button>
+    <button class="btn" data-q="todos" style="${bst}color:var(--red);">🗑 Quitar de TODOS los turnos</button>
+    ${(typeof _puedeBuzon==='function' && _puedeBuzon()) ? `<button class="btn" data-q="salidas" style="${bst}">📤 Enviar a SALIDAS</button>` : ''}
+    ${otros.length ? `<div style="font-size:11px;color:var(--muted2);margin-top:4px;">➡️ Enviar a otro grupo:</div><div style="display:flex;gap:6px;flex-wrap:wrap;">${otros.map(x=>`<button class="btn btn-sm" data-q="g" data-g="${x}" style="min-width:52px;font-weight:700;">${lbl(x)}</button>`).join('')}</div>` : ''}
+  </div>`;
+  m.querySelectorAll('[data-q]').forEach(btn=>btn.onclick = ()=>{
+    const q = btn.dataset.q;
+    m.remove();
+    if(q==='x') return;
+    if(q==='salidas'){ _enviarOpABuzon(gid, opId); return; }
+    if(q==='g'){ _moverOperarioAGrupo(gid, opId, btn.dataset.g); return; }
+    if(q==='todos'){
+      ['manana','tarde','noche'].forEach(t=>{ if(g._turnosOp && g._turnosOp[t]) g._turnosOp[t] = g._turnosOp[t].filter(o=>o.id!==opId); });
+      g.operarios = g.operarios.filter(o=>o.id!==opId);
+      Object.keys(g.permisos).forEach(k=>{ if(k.startsWith(opId+'|')) delete g.permisos[k]; });
+      mostrarToast(`🗑 ${nombre} eliminado de todos los turnos`);
+    } else {
+      const nuevoArr = g.operarios.filter(o=>o.id!==opId);
+      g.operarios = nuevoArr;
+      if(g._turnosOp) g._turnosOp[tramoConfig.turno] = nuevoArr;
+      if(g._turnosPermisos && g._turnosPermisos[tramoConfig.turno]){
+        Object.keys(g._turnosPermisos[tramoConfig.turno]).forEach(k=>{ if(k.startsWith(opId+'|')) delete g._turnosPermisos[tramoConfig.turno][k]; });
+      }
+      Object.keys(g.permisos).forEach(k=>{ if(k.startsWith(opId+'|')) delete g.permisos[k]; });
+      mostrarToast(`🗑 ${nombre} eliminado del turno de ${turnoNombre}`);
+    }
+    renderTramo(); render(); guardarYa();
+  });
+  document.body.appendChild(m);
+}
+function _moverOperarioAGrupo(srcGid, opId, tgtGid){
+  const srcG = GRUPOS_DATA[srcGid], tgtG = GRUPOS_DATA[tgtGid];
+  if(!srcG || !tgtG) return;
+  const opIdx = srcG.operarios.findIndex(o=>o.id===opId); if(opIdx<0) return;
+  const op = srcG.operarios[opIdx];
+  const srcLabel = appConfig.grupos[srcGid]||GRUPO_LABELS[srcGid], tgtLabel = appConfig.grupos[tgtGid]||GRUPO_LABELS[tgtGid];
+  _logCambio((op.apodo||op.nombre)+' movido de '+srcLabel+' a '+tgtLabel);
+  srcG.operarios.splice(opIdx, 1);
+  Object.keys(srcG.permisos).forEach(k=>{ if(k.startsWith(op.id+'|')) delete srcG.permisos[k]; });
+  const newId = nuevoIdOperario(tgtG);
+  const newOp = {...op, id:newId, carga_asignada:''};
+  const h = tgtG.operarios.findIndex(o=>o && o.hueco && !o.nombre);
+  if(h>=0) tgtG.operarios[h] = newOp; else tgtG.operarios.push(newOp);
+  tgtG.cargas.forEach(c=>{ tgtG.permisos[pKey(newId, c.id)] = false; });
+  GRUPOS_DATA[tgtGid]._ts = _ahoraServidor();
+  renderTramo(); render(); guardarYa();
+  mostrarToast(`✓ ${newOp.apodo||newOp.nombre} movido a ${tgtLabel}`);
 }
 
 function ocultarPapelera(){
@@ -12131,10 +12420,29 @@ let _caFinTs = null;
 let _caTactoInicial = null;
 let _caSegundosTotales = null;
 
+// Zona del defecto: Ramal 2 sale por el tacto del supervisor (46) y Tramo 2 por el del supervisor TR2 (53).
+// Se recuerda la última elegida en este móvil; si nunca se eligió, la de la sección del grupo.
+function _caZonaPorDefecto(){
+  try{ const z = localStorage.getItem('ca_zona'); if(z==='ramal2' || z==='tramo2') return z; }catch(e){}
+  try{ const mi = window._modoUsuario||grupoActivo; if(/^g\d+$/.test(mi||'')) return seccionDeGrupo(mi.slice(1))==='tramo2' ? 'tramo2' : 'ramal2'; }catch(e){}
+  return 'ramal2';
+}
+function _caTactoSalida(zona){ return zona==='tramo2' ? TACTO_SUPERVISOR_TR2 : TACTO_SUPERVISOR; }
+function _caCambioZona(zona){
+  try{ localStorage.setItem('ca_zona', zona); }catch(e){}
+  const nota = document.getElementById('ca-nota-salida');
+  if(nota) nota.textContent = `La salida (${zona==='tramo2'?'Tramo 2':'Ramal 2'}) es el tacto ${_caTactoSalida(zona)} — tiempo de tacto: 2:14 centesimal (2,14 min) por puesto.`;
+}
+let _caTactoFin = TACTO_SUPERVISOR;
+
 function abrirCuentaAtras(){
   const modal = document.getElementById('modal-cuenta-atras');
-  const nota = document.getElementById('ca-nota-salida');
-  if(nota) nota.textContent = `La salida (tacto del supervisor) es el tacto ${TACTO_SUPERVISOR} — tiempo de tacto: 2:14 centesimal (2,14 min) por puesto.`;
+  const selZona = document.getElementById('ca-zona');
+  const zona = _caZonaPorDefecto();
+  if(selZona) selZona.value = zona;
+  _caCambioZona(zona);
+  const inpHora = document.getElementById('ca-hora');
+  if(inpHora) inpHora.value = '';
   const sel = document.getElementById('ca-destino');
   if(sel){
     let opts = '<option value="todos">👥 Todos</option><option value="supervisor">🟣 Supervisor</option>';
@@ -12162,13 +12470,24 @@ function iniciarCuentaAtras(){
   const destino = document.getElementById('ca-destino')?.value || 'todos';
   if(isNaN(tacto)){ mostrarToast('⚠ Escribe el tacto donde está el coche'); return; }
   if(!defecto){ mostrarToast('⚠ Escribe qué defecto lleva el coche'); return; }
-  const tactosRestantes = TACTO_SUPERVISOR - tacto;
+  const zona = document.getElementById('ca-zona')?.value || 'ramal2';
+  _caTactoFin = _caTactoSalida(zona);
+  // Hora en que el coche estaba en ese tacto (vacía = ahora). Si es "más tarde" que ahora, era de ayer.
+  let tsHora = Date.now();
+  const horaTxt = document.getElementById('ca-hora')?.value || '';
+  if(/^\d{1,2}:\d{2}$/.test(horaTxt)){
+    const [hh, mi2] = horaTxt.split(':').map(Number);
+    const dH = new Date(); dH.setHours(hh, mi2, 0, 0);
+    if(dH.getTime() > Date.now() + 60000) dH.setDate(dH.getDate()-1);
+    tsHora = dH.getTime();
+  }
+  const tactosRestantes = _caTactoFin - tacto;
   document.getElementById('cuenta-atras-form').style.display = 'none';
   const res = document.getElementById('cuenta-atras-resultado');
   res.style.display = 'flex';
   const reloj = document.getElementById('ca-reloj');
   reloj.style.color = '#e0a46f';
-  document.getElementById('ca-etiqueta').textContent = (secuencia ? ('Coche '+secuencia+' · ') : '')+'tacto '+tacto+' → '+TACTO_SUPERVISOR;
+  document.getElementById('ca-etiqueta').textContent = (secuencia ? ('Coche '+secuencia+' · ') : '')+'tacto '+tacto+' → '+_caTactoFin+(zona==='tramo2'?' (Tramo 2)':'');
   const defectoMsg = document.getElementById('ca-defecto-msg');
   if(defectoMsg) defectoMsg.innerHTML = '⚠️ <b>'+defecto+'</b>';
   const barra = document.getElementById('ca-barra');
@@ -12182,18 +12501,18 @@ function iniciarCuentaAtras(){
   }
   _caTactoInicial = tacto;
   _caSegundosTotales = tactosRestantes * TIEMPO_TACTO_SEG;
-  _caFinTs = Date.now() + _caSegundosTotales*1000;
+  _caFinTs = tsHora + _caSegundosTotales*1000;
   if(barra) barra.style.width = '100%';
   _actualizarRelojCuentaAtras(tactosRestantes);
   if(_caInterval) clearInterval(_caInterval);
   _caInterval = setInterval(()=>_actualizarRelojCuentaAtras(tactosRestantes), 1000);
-  enviarAvisoDefecto(tacto, secuencia, defecto, tactosRestantes, _caSegundosTotales, _caFinTs, destino);
+  enviarAvisoDefecto(tacto, secuencia, defecto, tactosRestantes, _caSegundosTotales, _caFinTs, destino, _caTactoFin, zona);
 }
 
-function enviarAvisoDefecto(tacto, secuencia, defecto, tactosRestantes, segundosTotales, finTs, destino){
+function enviarAvisoDefecto(tacto, secuencia, defecto, tactosRestantes, segundosTotales, finTs, destino, tactoFin, zona){
   const mi = window._modoUsuario||grupoActivo;
   const grupoLabel = (visorRoleIds().includes(mi)&&!['conductor','servicio','electrico'].includes(mi))?rolVisorLabel(mi):mi==='supervisor'?'SUPERVISOR':mi==='conductor'?'CONDUCTOR':mi==='servicio'?'SERV.CLI':mi==='electrico'?'ELECTRICO':'G'+(appConfig.grupos[mi]||mi.replace('g','G').toUpperCase());
-  const datos = {fin:finTs, tIni:tacto, segTot:segundosTotales, def:defecto, seq:secuencia};
+  const datos = {fin:finTs, tIni:tacto, segTot:segundosTotales, def:defecto, seq:secuencia, tFin:tactoFin||TACTO_SUPERVISOR, zona:zona||'ramal2'};
   const texto = MARCA_CUENTA + JSON.stringify(datos);
   const ts = Date.now();
   window._misMensajes = window._misMensajes||new Set();
@@ -12233,7 +12552,7 @@ function _actualizarRelojCuentaAtras(tactosRestantes){
     reloj.textContent = '🚗 ¡HA SALIDO!';
     reloj.style.color = '#7fd88f';
     if(rest) rest.textContent = '';
-    if(tactoEl) tactoEl.textContent = 'Tacto '+TACTO_SUPERVISOR+' (salida)';
+    if(tactoEl) tactoEl.textContent = 'Tacto '+_caTactoFin+' (salida)';
     if(barra) barra.style.width = '0%';
     if(_caInterval){ clearInterval(_caInterval); _caInterval = null; }
     return;
@@ -12246,7 +12565,7 @@ function _actualizarRelojCuentaAtras(tactosRestantes){
   // Tacto actual del coche, calculado por el tiempo ya transcurrido
   const transcurridoSeg = _caSegundosTotales - (restanteMs/1000);
   const tactosAvanzados = Math.floor(transcurridoSeg / TIEMPO_TACTO_SEG);
-  const tactoActual = Math.min(TACTO_SUPERVISOR, _caTactoInicial + tactosAvanzados);
+  const tactoActual = Math.min(_caTactoFin, _caTactoInicial + tactosAvanzados);
   if(tactoEl) tactoEl.textContent = '📍 Va por el tacto '+tactoActual;
   if(barra) barra.style.width = Math.max(0, (restanteMs/1000)/_caSegundosTotales*100)+'%';
 }
@@ -13097,10 +13416,20 @@ function actualizarHora(){
       if(d && d.datos){
         // Si quedó un guardado local SIN subir (p.ej. se recargó/cerró antes de que terminara
         // de subirse), ese estado local es más nuevo que la nube: se conserva y se sube.
+        _fijarBaseGrupos(d.datos);
+        // Solo se recuperan los grupos cuya copia local es MÁS NUEVA que la de la nube: antes se subía
+        // la copia local entera y se pisaban los cambios que otros habían hecho mientras tanto.
         try{
           if(localStorage.getItem(LS_KEY+'_pend')==='1'){
-            const _loc = localStorage.getItem(LS_KEY);
-            if(_loc && JSON.parse(_loc).GRUPOS_DATA){ d = {...d, datos:_loc}; _hayPendiente = true; }
+            const _loc = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+            const _nube = JSON.parse(d.datos);
+            if(_loc && _loc.GRUPOS_DATA && _nube && _nube.GRUPOS_DATA){
+              Object.keys(_loc.GRUPOS_DATA).forEach(gid=>{
+                const gl = _loc.GRUPOS_DATA[gid], gn = _nube.GRUPOS_DATA[gid];
+                if(!gn || (gl && (gl._ts||0) > (gn._ts||0))){ _nube.GRUPOS_DATA[gid] = gl; _hayPendiente = true; }
+              });
+              if(_hayPendiente) d = {...d, datos: JSON.stringify(_nube)};
+            }
           }
         }catch(e){}
         // Firebase siempre gana — reemplazar GRUPOS_DATA completamente
@@ -13178,13 +13507,18 @@ function actualizarHora(){
       setTimeout(()=>{ comprobarAgenda(); comprobarRevisionesMedicas(); actualizarAvisos(); comprobarCierreTurno(); comprobarPerdidosAutoCero(); resetearPresenciaDiaria(); limpiarHistoricoAntiguo(); }, 500);
       if(window._fbEscuchar){
         let miTs = d?.ts||0;
-        window._fbEscuchar(d2=>{
+        let _alRemoto;
+        window._fbEscuchar(_alRemoto = d2=>{
           // Solo aplicar si Firebase tiene datos más nuevos que nuestro último guardado local
           const tsLocal = window._estadoGuardado ? (JSON.parse(window._estadoGuardado).ts||0) : 0;
           // PROTECCIÓN: si el usuario editó algo hace menos de 10s, NO pisar sus cambios
           const editandoAhora = window._ultimaEdicionLocal && (Date.now() - window._ultimaEdicionLocal < 4000);
           if(editandoAhora){
-            return; // ignorar la actualización remota, el usuario está trabajando
+            // El usuario está trabajando: no pisar ahora, pero tampoco perder la actualización
+            // (antes se descartaba y este móvil se quedaba con la copia vieja).
+            clearTimeout(window._remotoReintento);
+            window._remotoReintento = setTimeout(()=>{ if(window._nubePausada) return; try{ _alRemoto(d2); }catch(e){} }, 4500);
+            return;
           }
           if(d2&&d2.ts&&d2.ts>miTs+500&&d2.datos&&d2.ts>tsLocal){
             miTs=d2.ts;
@@ -13196,6 +13530,8 @@ function actualizarHora(){
             const _prAntes = JSON.stringify([previsionTurno.perdidosPorTurno, _mapaPerdidos('pulmon')]);
             try{
               try{ localStorage.setItem(LS_KEY,d2.datos); }catch(e){}
+              _fijarBaseGrupos(d2.datos);
+              window._estadoGuardado = d2.datos; // lo último conocido ya es lo de la nube (para no resubir una copia vieja)
               cargarEstado(); // ya deja tramoConfig.turno con el de este dispositivo y los datos sincronizados
               try{ _fusionarRutinaRemota(JSON.parse(d2.datos).appConfig); }catch(e){ console.warn('fusión rutina:', e); }   // checks de rutina (portavoces y supervisores) hechos en otro dispositivo
               grupoActivo = grupoLocal; // restaurar grupo del usuario
@@ -15748,6 +16084,13 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
 #movil-off.boot .mo-car img{animation:moZoom 5s ease-out both !important;}
 @keyframes moZoom{from{transform:scale(.93)}to{transform:scale(1.05)}}
 @keyframes moEntra{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
+/* Desbloqueo: deslizar hacia arriba (móvil) o clic (PC) */
+#movil-off.boot{cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;}
+#movil-off.sube{transition:transform .45s ease-in,opacity .45s ease-in;transform:translateY(-100%) !important;opacity:0;}
+#movil-off .mo-desliza{display:none;position:absolute;left:0;right:0;bottom:22px;z-index:3;text-align:center;color:#f0c9a0;font:600 13px Oswald,sans-serif;letter-spacing:.12em;text-transform:uppercase;text-shadow:0 1px 4px #000;animation:moDesliza 1.6s ease-in-out infinite;}
+#movil-off .mo-desliza span{display:block;font-size:22px;line-height:1;}
+#movil-off.boot .mo-desliza{display:block;}
+@keyframes moDesliza{0%,100%{transform:translateY(0);opacity:.6}50%{transform:translateY(-8px);opacity:1}}
 </style>
 <script id="js-fix-angulos">
 /* Situación taller: marca las casillas/etiquetas con diagonal para dibujarles la línea exacta */
@@ -15799,9 +16142,26 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
     var o=construir(); if(!o||ocupado) return; ocupado=true; colocar();
     var car=o.querySelector('.mo-car'); try{ car.innerHTML=(typeof window._cuproCoche==='function')?window._cuproCoche():''; }catch(e){}
     o.style.opacity=''; o.className='boot'; btn().classList.remove('off'); d_().classList.remove('movil-apagado'); encendido=true;
-    setTimeout(function(){ o.classList.add('fade'); },4400);
-    setTimeout(function(){ o.className=''; o.style.opacity=''; ocupado=false; },5100);
+    // El coche se queda hasta que se desbloquea: deslizando hacia arriba en el móvil o con un clic en el PC
+    var tactil=('ontouchstart' in window)||navigator.maxTouchPoints>0;
+    var av=o.querySelector('.mo-desliza'); if(!av){ av=document.createElement('div'); av.className='mo-desliza'; o.appendChild(av); }
+    av.innerHTML='<span>︿</span>'+(tactil?'Desliza hacia arriba':'Haz clic para entrar');
+    ocupado=false;
   }
+  function desbloquear(){
+    var o=document.getElementById('movil-off'); if(!o||!o.classList.contains('boot')||o.classList.contains('sube')) return;
+    o.classList.add('sube');
+    setTimeout(function(){ o.className=''; o.style.opacity=''; o.style.transform=''; },450);
+  }
+  // Gestos sobre la pantalla del coche
+  (function(){
+    var y0=null, t0=0;
+    document.addEventListener('touchstart',function(e){ var o=e.target&&e.target.closest&&e.target.closest('#movil-off.boot'); if(!o) return; y0=e.touches[0].clientY; t0=Date.now(); },{passive:true});
+    document.addEventListener('touchmove',function(e){ if(y0==null) return; var o=document.getElementById('movil-off'); var dy=e.touches[0].clientY-y0; if(o&&dy<0) o.style.transform='translateY('+dy+'px)'; },{passive:true});
+    document.addEventListener('touchend',function(e){ if(y0==null) return; var o=document.getElementById('movil-off'); var dy=(e.changedTouches[0]||{}).clientY-y0; y0=null;
+      if(dy<-60 || (dy<-25 && Date.now()-t0<300)) desbloquear(); else if(o){ o.style.transform=''; } });
+    document.addEventListener('click',function(e){ var o=e.target&&e.target.closest&&e.target.closest('#movil-off.boot'); if(!o) return; if(('ontouchstart' in window)&&e.sourceCapabilities&&e.sourceCapabilities.firesTouchEvents) return; desbloquear(); });
+  })();
   function alternar(){ if(ocupado) return; if(encendido) apagar(); else encender(); }
   window.movilAlternarEnergia=alternar;
   // Al abrir el móvil siempre está encendido
@@ -16154,7 +16514,7 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
     var gsel='';
     var h=gsel+'<div style="font-size:12px;color:#9aa3b0">Los elegidos pasan al <b>mismo grupo ('+lbl(gid)+')</b> del otro turno y salen en el ticker.</div>'
       +'<div class="cu-adm-h">➡ Turno que necesita gente</div><div class="st-dest">'+otros.map(function(t,i){ return '<label><input type="radio" name="st-dest" value="'+t+'"'+(i===0?' checked':'')+' style="display:none"><span>'+TL[t]+'</span></label>'; }).join('')+'</div>'
-      +'<div class="cu-adm-h">👥 Quién puede ir (quita a los que no)</div><div id="st-lista">'+lista.map(function(o){ var mo=motivo(o), dis=mo&&mo.k==='horas'; return '<label class="st-fila"'+(dis?' style="opacity:.45;cursor:not-allowed" title="Con la jornada reducida no vale para el sorteo"':'')+'><input type="checkbox" data-id="'+o.id+'"'+(mo?'':' checked')+(dis?' disabled':'')+'><span>'+esc(nom(o))+(o.esEtt?' <small style="margin:0">ETT</small>':'')+'</span>'+(mo?'<small style="color:#e0a46f;margin-left:6px">'+mo.t+'</small>':'')+'<small>'+(veces(gid,o)===1?'1 vez':veces(gid,o)+' veces')+'</small></label>'; }).join('')+'</div>'
+      +'<div class="cu-adm-h">👥 Quién puede ir (quita a los que no)</div><div id="st-lista">'+lista.map(function(o){ var mo=motivo(o), dis=!!mo; return '<label class="st-fila"'+(dis?' style="opacity:.45;cursor:not-allowed" title="'+(mo.k==='horas'?'Con la jornada reducida no vale para el sorteo':'Perfil especial: no entra en el sorteo de cambio de turno')+'"':'')+'><input type="checkbox" data-id="'+o.id+'"'+(mo?'':' checked')+(dis?' disabled':'')+'><span>'+esc(nom(o))+(o.esEtt?' <small style="margin:0">ETT</small>':'')+'</span>'+(mo?'<small style="color:#e0a46f;margin-left:6px">'+mo.t+'</small>':'')+'<small>'+(veces(gid,o)===1?'1 vez':veces(gid,o)+' veces')+'</small></label>'; }).join('')+'</div>'
       +'<div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span>¿Cuántos?</span><input id="st-n" class="st-num" type="number" min="1" max="'+lista.length+'" value="1">'
       +'<button class="btn btn-sm" style="background:#c2773a;color:#1a1200;font-weight:700" onclick="_stSortear()">🎲 Sortear</button></div>'
       +'<div class="st-res" id="st-res"></div>'
@@ -16165,7 +16525,7 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
   window._stSortear=function(){
     if(!sel) return; var gid=sel.gid;
     var ids=[].slice.call(document.querySelectorAll('#st-lista input:checked')).map(function(i){ return +i.getAttribute('data-id'); });
-    var pool=cands(gid).filter(function(o){ var m=motivo(o); return ids.indexOf(o.id)>-1 && !(m&&m.k==='horas'); });
+    var pool=cands(gid).filter(function(o){ return ids.indexOf(o.id)>-1 && !motivo(o); }); // perfiles especiales y jornada reducida nunca entran
     var n=Math.max(1,Math.min(+document.getElementById('st-n').value||1,pool.length));
     if(!pool.length){ mostrarToast('⚠ No hay nadie marcado'); return; }
     pool.forEach(function(o){ o._r=Math.random(); });
@@ -16228,9 +16588,9 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
 })();
 </script>
 <style id="css-op-limitado">
-.op-tecnico{outline:1.5px solid #e0a46f;outline-offset:1px;background:rgba(224,164,111,.10) !important;box-shadow:0 0 6px rgba(224,164,111,.35);}
-.op-concilia{outline:1.5px solid #5aa9ff;outline-offset:1px;background:rgba(90,169,255,.10) !important;box-shadow:0 0 6px rgba(90,169,255,.35);}
-.op-limitado{outline:1.5px solid #e5534b;outline-offset:1px;background:rgba(229,83,75,.10) !important;box-shadow:0 0 6px rgba(229,83,75,.35);}
+/* Perfiles especiales (✚ médico, 🔧 especializado, 👪 conciliación): solo se configuran en el selector de perfil
+   y no entran en el sorteo de cambio de turno; el nombre ya no se marca con recuadro de color. */
+.op-tecnico,.op-concilia,.op-limitado{}
 </style>
 <style id="css-bombo">
 .st-bombo{display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center;margin:6px 0;}
@@ -16559,13 +16919,32 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
   });
 })();
 </script>
+<style id="css-todos-tile">
+/* Marcador TODOS del admin: mismo marco que INVITADOS, justo a su lado */
+#todos-tile{position:relative;--c:12px;--marco:rgba(194,119,58,.7);border:0 !important;border-radius:0 !important;box-shadow:none !important;background:linear-gradient(135deg,rgba(194,119,58,.16),rgba(0,0,0,.35)) !important;align-self:stretch;padding:0 12px !important;
+  clip-path:polygon(0 0,calc(100% - var(--c)) 0,100% var(--c),100% 100%,var(--c) 100%,0 calc(100% - var(--c))) !important;}
+#todos-tile::before{content:"";position:absolute;inset:0;pointer-events:none;background:var(--marco);z-index:2;
+  clip-path:polygon(evenodd,0 0,calc(100% - var(--c)) 0,100% var(--c),100% 100%,var(--c) 100%,0 calc(100% - var(--c)),0 0,
+   2px 2px,calc(100% - var(--c) - .83px) 2px,calc(100% - 2px) calc(var(--c) + .83px),calc(100% - 2px) calc(100% - 2px),calc(var(--c) + .83px) calc(100% - 2px),2px calc(100% - var(--c) - .83px),2px 2px);}
+#todos-tile .tramo-stat-label{font-family:Michroma,Oswald,sans-serif !important;font-size:8px !important;letter-spacing:.14em !important;white-space:nowrap;}
+#fila-resumen #todos-tile{margin-left:8px !important;margin-right:auto !important;width:108px;min-width:108px !important;box-sizing:border-box;}
+#fila-resumen #invitados-tile:has(+ #todos-tile[style*="flex"]){margin-right:0 !important;}
+</style>
 <style id="css-camara-app">
-#cam-app{position:fixed;inset:0;z-index:100002;background:#000;display:flex;flex-direction:column;}
-#cam-app video{flex:1;min-height:0;width:100%;object-fit:cover;background:#000;}
-#cam-app .cam-bar{display:flex;align-items:center;justify-content:space-around;padding:14px 10px calc(14px + env(safe-area-inset-bottom));background:#0b0b0b;}
-#cam-app button{border:0;color:#fff;background:#2a2a2a;border-radius:50%;width:52px;height:52px;font-size:22px;cursor:pointer;}
-#cam-app button.cam-disp{width:72px;height:72px;background:#fff;border:5px solid #c2773a;}
-#cam-app .cam-msg{position:absolute;top:12px;left:0;right:0;text-align:center;color:#ffd9a8;font:600 14px sans-serif;text-shadow:0 1px 3px #000;}
+/* La imagen ocupa toda la pantalla y los botones van encima (transparentes): en horizontal ya no se come media pantalla */
+#cam-app{position:fixed;inset:0;z-index:100002;background:#000;}
+#cam-app video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;}
+#cam-app .cam-bar{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;padding:14px 10px calc(18px + env(safe-area-inset-bottom));background:transparent;pointer-events:none;}
+#cam-app .cam-bar button{pointer-events:auto;}
+#cam-app button{border:0;color:#fff;cursor:pointer;}
+/* Botón de disparo como el de la cámara del móvil: círculo blanco con aro */
+#cam-app button.cam-disp{width:70px;height:70px;border-radius:50%;background:#fff;border:4px solid rgba(0,0,0,.25);box-shadow:0 0 0 4px #fff;padding:0;}
+#cam-app button.cam-disp:active{transform:scale(.92);background:#ddd;}
+#cam-app #cam-x{position:absolute;top:calc(10px + env(safe-area-inset-top));left:10px;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.45);font-size:18px;z-index:1;}
+#cam-app .cam-msg{position:absolute;top:calc(16px + env(safe-area-inset-top));left:56px;right:56px;text-align:center;color:#ffd9a8;font:600 14px sans-serif;text-shadow:0 1px 3px #000;}
+@media (orientation:landscape){
+  #cam-app .cam-bar{left:auto;top:0;right:0;bottom:0;padding:10px calc(18px + env(safe-area-inset-right)) 10px 10px;}
+}
 </style>
 <script id="js-camara-app">
 /* Cámara dentro de la app: no sale de la página, así que el móvil no la recarga y la foto llega siempre al chat */
@@ -16577,7 +16956,7 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
     cerrar();
     if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){ respaldo(); return; }
     var d=document.createElement('div'); d.id='cam-app';
-    d.innerHTML='<div class="cam-msg">📷 Encuadra y pulsa el botón blanco</div><video playsinline muted autoplay></video><div class="cam-bar"><button type="button" id="cam-x" aria-label="Cerrar">✕</button><button type="button" class="cam-disp" id="cam-d" aria-label="Hacer foto"></button><button type="button" id="cam-g" aria-label="Girar cámara">🔄</button></div>';
+    d.innerHTML='<div class="cam-msg">📷 Encuadra y pulsa el botón blanco</div><video playsinline muted autoplay></video><button type="button" id="cam-x" aria-label="Cerrar">✕</button><div class="cam-bar"><button type="button" class="cam-disp" id="cam-d" aria-label="Hacer foto"></button></div>';
     document.body.appendChild(d);
     var v=d.querySelector('video');
     async function iniciar(){
@@ -16587,7 +16966,6 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
       }catch(e){ console.warn('cámara:',e); try{ mostrarToast('⚠ No se pudo abrir la cámara (¿permiso denegado?). Pruebo con la de siempre…'); }catch(_){} respaldo(); return false; }
       return true; }
     d.querySelector('#cam-x').onclick=cerrar;
-    d.querySelector('#cam-g').onclick=function(){ cara=cara==='environment'?'user':'environment'; iniciar(); };
     d.querySelector('#cam-d').onclick=function(){
       if(!v.videoWidth){ return; }
       var W=v.videoWidth, H=v.videoHeight, k=Math.min(1,1600/Math.max(W,H)), c=document.createElement('canvas'); c.width=Math.round(W*k); c.height=Math.round(H*k);
