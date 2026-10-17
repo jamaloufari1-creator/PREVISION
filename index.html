@@ -803,6 +803,7 @@ console.log('Supabase conectado correctamente');
       <button class="btn btn-sm" id="btn-vista-sorteo" style="color:var(--muted2);border-color:var(--border);" onclick="cambiarVista('sorteo')">🎱 Gestión de equipo y rotaciones</button>
       <button class="btn btn-sm" id="btn-sorteo-turno-top" title="Sorteo de cambio de turno" style="display:none;color:var(--blue);border-color:var(--blue);font-weight:700;" onclick="abrirSorteoTurno()">🎲 Sorteo cambio de turno</button>
 
+      <button class="btn btn-sm" id="btn-campana-top" title="Probar notificaciones en este dispositivo" data-lectura-ok="1" onclick="_probarPush()" style="flex-shrink:0;font-size:15px;padding:4px 9px;color:#e0a46f;border-color:#c2773a;">🔔</button>
       <div id="menu-mas" style="position:relative;">
         <button class="btn btn-sm" id="btn-buscar-top" onclick="abrirBuscador()" title="Buscar operario (Ctrl+K) · Registro de cambios" style="font-weight:700;">🔍 Buscar operarios</button>
         <button class="btn btn-sm" id="btn-mas-top" title="Herramientas" style="color:var(--muted2);border-color:var(--border2);font-weight:700;" onclick="event.stopPropagation();_clicMenuMas()">🛠 Herramientas ▾</button>
@@ -7562,6 +7563,23 @@ async function enviarNotificacionPush(gid, titulo, cuerpo){
     if(!window._osAvisado){ window._osAvisado = true; try{ mostrarToast('⚠ Notificación push no enviada: '+String(e).slice(0,120)); }catch(_){} }
   }
 }
+
+// En el móvil la barra de botones de arriba se sale de la pantalla: campana fija arriba a la derecha
+(function(){
+  const st = document.createElement('style');
+  st.textContent = '#campana-movil{display:none;position:fixed;top:calc(6px + env(safe-area-inset-top));right:8px;z-index:2999;width:34px;height:34px;border-radius:50%;border:1px solid #c2773a;background:rgba(20,14,8,.9);color:#e0a46f;font-size:17px;line-height:32px;text-align:center;padding:0;box-shadow:0 2px 10px rgba(0,0,0,.5);cursor:pointer;}'
+    + '@media (max-width:700px){body.con-campana #campana-movil{display:block;}}';
+  document.head.appendChild(st);
+  function poner(){
+    if(!document.body) return;
+    let b = document.getElementById('campana-movil');
+    if(!b){ b = document.createElement('button'); b.id = 'campana-movil'; b.type = 'button'; b.title = 'Probar notificaciones'; b.textContent = '🔔'; b.onclick = ()=>_probarPush(); document.body.appendChild(b); }
+    const p = document.getElementById('pantalla-inicio');
+    const dentro = !!window._modoUsuario || (p && getComputedStyle(p).display === 'none' && !document.getElementById('cu-splash'));
+    document.body.classList.toggle('con-campana', dentro);
+  }
+  setInterval(poner, 1000);
+})();
 
 // Diagnóstico: comprueba paso a paso si ESTE móvil puede recibir push y se manda una prueba a sí mismo
 // (una al momento y otra a los 30 s, para probarla con la app cerrada).
