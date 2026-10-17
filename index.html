@@ -16588,9 +16588,9 @@ button[onclick="pltAddOp()"],button[onclick="pltAddCarga()"],button[onclick="abr
 })();
 </script>
 <style id="css-op-limitado">
-.op-tecnico{outline:1.5px solid #e0a46f;outline-offset:1px;background:rgba(224,164,111,.10) !important;box-shadow:0 0 6px rgba(224,164,111,.35);}
-.op-concilia{outline:1.5px solid #5aa9ff;outline-offset:1px;background:rgba(90,169,255,.10) !important;box-shadow:0 0 6px rgba(90,169,255,.35);}
-.op-limitado{outline:1.5px solid #e5534b;outline-offset:1px;background:rgba(229,83,75,.10) !important;box-shadow:0 0 6px rgba(229,83,75,.35);}
+/* Perfiles especiales (✚ médico, 🔧 especializado, 👪 conciliación): solo se configuran en el selector de perfil
+   y no entran en el sorteo de cambio de turno; el nombre ya no se marca con recuadro de color. */
+.op-tecnico,.op-concilia,.op-limitado{}
 </style>
 <style id="css-bombo">
 .st-bombo{display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center;margin:6px 0;}
